@@ -1,0 +1,39 @@
+{
+  "name": "ticket-vault",
+  "version": "1.0.4",
+  "description": "Ticket Inventory Manager",
+  "main": "electron.js",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win",
+    "build-mac": "electron-builder --mac",
+    "release": "electron-builder --win --publish always"
+  },
+  "build": {
+    "appId": "com.ticketvault.app",
+    "productName": "TicketVault",
+    "publish": {
+      "provider": "github",
+      "owner": "michalsmida8-arch",
+      "repo": "ticketvault"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "files": [
+      "index.html",
+      "electron.js",
+      "preload.js"
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}
