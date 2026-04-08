@@ -1,6 +1,6 @@
 {
   "name": "ticket-vault",
-  "version": "1.0.4",
+  "version": "3.1.1",
   "description": "Ticket Inventory Manager",
   "main": "electron.js",
   "scripts": {
@@ -26,11 +26,15 @@
     "files": [
       "index.html",
       "electron.js",
-      "preload.js"
+      "preload.js",
+      "gmail-service.js",
+      "node_modules/**/*"
     ]
   },
   "dependencies": {
-    "electron-updater": "^6.1.7"
+    "electron-updater": "^6.1.7",
+    "imap": "^0.8.19",
+    "mailparser": "^3.6.5"
   },
   "devDependencies": {
     "electron": "^29.0.0",
