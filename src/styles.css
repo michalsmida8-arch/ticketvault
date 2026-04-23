@@ -14,91 +14,100 @@
 
 :root {
   /* ============================================================
-     DARK THEME (default) — Warm minimal, Linear/Vercel aesthetic.
-     Zinc-based neutrals with purple as subtle brand accent.
+     DARK THEME (default) — Black + Gold "ticket stub" aesthetic.
+     Warm ink neutrals with patina gold as brand accent.
+     NOTE: variable name --purple is kept (used in ~110 rules across
+     this file); only the value is now gold. Same for --purple-rgb.
      ============================================================ */
-  --bg-primary: #09090b;       /* page background */
-  --bg-secondary: #0f0f11;     /* sidebar / panels */
-  --bg-tertiary: #18181b;      /* cards, elevated surfaces */
-  --bg-card: #18181b;
-  --bg-hover: #27272a;         /* hover states */
-  --border: #27272a;
-  --border-subtle: #1f1f22;
+  --bg-primary: #0a0908;       /* page background — warm ink */
+  --bg-secondary: #100e0c;     /* sidebar / panels */
+  --bg-tertiary: #1a1714;      /* cards, elevated surfaces */
+  --bg-card: #1a1714;
+  --bg-hover: #231e19;         /* hover states */
+  --border: #2d2824;           /* warm-dark border */
+  --border-subtle: #1f1b17;
 
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
+  --text-primary: #f5ecd7;     /* warm cream — easier on eyes than pure white */
+  --text-secondary: #c2b7a1;
+  --text-tertiary: #8a7e6a;
 
-  /* Purple accent (lighter for contrast against black) */
-  --purple: #a78bfa;
-  --purple-hover: #c4b5fd;
-  --purple-dim: #7c3aed;
+  /* GOLD accent (patina; lighter shade for contrast on black) */
+  --purple: #d4a94a;           /* primary gold */
+  --purple-hover: #f0c85a;     /* hover state / brighter gold */
+  --purple-dim: #8a6e2a;       /* dimmer gold (pressed/disabled) */
   --purple-glow: rgba(var(--purple-rgb), 0.12);
 
-  --purple-rgb: 167, 139, 250;   /* for rgba() composition */
-  --green-rgb: 34, 197, 94;
-  --red-rgb: 239, 68, 68;
-  --yellow-rgb: 234, 179, 8;
+  --purple-rgb: 212, 169, 74;    /* gold RGB for rgba() composition */
+  --green-rgb: 155, 184, 106;    /* olive-green, softer on warm bg */
+  --red-rgb: 208, 107, 90;       /* rust-red, matches warm palette */
+  --yellow-rgb: 212, 169, 74;    /* alias of gold, for legacy rules */
 
-  /* Semantic */
-  --green: #22c55e;
-  --green-bright: #4ade80;
-  --red: #ef4444;
-  --red-bright: #f87171;
-  --yellow: #eab308;
-  --blue: #3b82f6;
-  --orange: #f97316;
+  /* Semantic colors (tuned for warm dark bg) */
+  --green: #9bb86a;
+  --green-bright: #b3ce7e;
+  --red: #d06b5a;
+  --red-bright: #e38473;
+  --yellow: #d4a94a;
+  --blue: #6b9bb8;
+  --orange: #c98855;
 
-  /* Button primary text color — for contrast on lighter purple */
-  --on-purple: #0a0a0a;
+  /* Button primary text color — dark text on light gold button */
+  --on-purple: #0a0908;
 
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
 
+  /* Display font: Playfair Display (serif, ticket-stub luxury feel) */
+  --font-display: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+  /* UI / body sans-serif (unchanged) */
   --font-sans: 'Inter', 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, sans-serif;
+  /* Monospace (unchanged) */
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Mono', 'Consolas', monospace;
+  /* CTA / ticket-label font: Oswald condensed */
+  --font-ticket: 'Oswald', 'Arial Narrow', 'Impact', sans-serif;
 
   color-scheme: dark;
 }
 
 /* ============================================================
-   LIGHT THEME — inverted palette, same structure.
-   Bílé pozadí, tmavý text, purple se prohloubí pro čitelnost.
+   LIGHT THEME — Cream paper + gold, inverted from dark.
+   Teplá krémová pro pozadí, hlubší zlato pro kontrast na světlém,
+   inkoustově černý text. Stejná estetika, jen "rozsvícená".
    ============================================================ */
 [data-theme="light"] {
-  --bg-primary: #fafafa;       /* page background */
-  --bg-secondary: #ffffff;     /* sidebar / panels */
-  --bg-tertiary: #ffffff;      /* cards */
-  --bg-card: #ffffff;
-  --bg-hover: #f4f4f5;         /* hover */
-  --border: #e4e4e7;
-  --border-subtle: #f1f1f3;
+  --bg-primary: #faf6ea;       /* warm cream paper */
+  --bg-secondary: #fffcf5;     /* sidebar / panels */
+  --bg-tertiary: #fffcf5;      /* cards */
+  --bg-card: #fffcf5;
+  --bg-hover: #f2ebd9;         /* hover */
+  --border: #e5dccb;
+  --border-subtle: #f0e8d4;
 
-  --text-primary: #09090b;
-  --text-secondary: #52525b;
-  --text-tertiary: #71717a;
+  --text-primary: #1a1714;     /* warm ink (not pure black) */
+  --text-secondary: #5a5248;
+  --text-tertiary: #8a7e6a;
 
-  /* Deeper purple on light background for contrast */
-  --purple: #7c3aed;
-  --purple-hover: #6d28d9;
-  --purple-dim: #a78bfa;
-  --purple-glow: rgba(124, 58, 237, 0.1);
+  /* Deeper gold on light bg for proper contrast */
+  --purple: #a6873a;           /* primary gold, deeper for light bg */
+  --purple-hover: #8a6e2a;     /* hover state */
+  --purple-dim: #d4a94a;       /* lighter gold variant */
+  --purple-glow: rgba(166, 135, 58, 0.1);
 
-  --purple-rgb: 124, 58, 237;
-  --green-rgb: 22, 163, 74;
-  --red-rgb: 220, 38, 38;
-  --yellow-rgb: 202, 138, 4;
+  --purple-rgb: 166, 135, 58;    /* deeper gold */
+  --green-rgb: 90, 126, 63;
+  --red-rgb: 158, 74, 60;
+  --yellow-rgb: 166, 135, 58;
 
-  --green: #16a34a;
-  --green-bright: #15803d;
-  --red: #dc2626;
-  --red-bright: #b91c1c;
-  --yellow: #ca8a04;
-  --blue: #2563eb;
-  --orange: #ea580c;
+  --green: #5a7e3f;
+  --green-bright: #466331;
+  --red: #9e4a3c;
+  --red-bright: #7e3a2e;
+  --yellow: #a6873a;
+  --blue: #3c6e96;
+  --orange: #b56a3f;
 
-  --on-purple: #ffffff;
+  --on-purple: #fffcf5;          /* cream text on gold button */
 
   color-scheme: light;
 }
@@ -229,10 +238,11 @@ button:focus-visible {
 [data-theme="light"] .logo-icon.logo-light { display: block; }
 
 .logo {
-  font-size: 18px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.01em;
 }
 
 .status-badge {
@@ -396,9 +406,11 @@ button:focus-visible {
 }
 
 .page-title {
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
 /* ============ BUTTONS ============ */
@@ -416,8 +428,13 @@ button:focus-visible {
 
 .btn-primary {
   background: var(--purple);
-  color: #0a0a0a;
+  color: var(--on-purple);
+  font-family: var(--font-ticket);
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  padding: 10px 18px;
 }
 
 .btn-primary:hover {
@@ -545,8 +562,33 @@ button:focus-visible {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
+  padding: 16px 18px 16px 26px;   /* extra left padding for ticket-stub accent */
   transition: border-color 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ticket-stub accent: solid gold bar on left edge */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--purple);
+  opacity: 0.7;
+}
+
+/* Perforation dots right after the gold bar (decorative, echoes the ticket) */
+.stat-card::after {
+  content: '';
+  position: absolute;
+  left: 12px; top: 0; bottom: 0;
+  width: 1px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0 4px,
+    transparent 4px 8px
+  );
 }
 
 .stat-card:hover {
@@ -554,33 +596,43 @@ button:focus-visible {
 }
 
 .stat-label {
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--text-tertiary);
-  letter-spacing: 1.2px;
-  margin-bottom: 6px;
+  letter-spacing: 1.6px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
 }
 
+/* Variant 03 — Inter bold tabular numerals, single color, classic finance style */
 .stat-value {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.2;
   word-break: break-word;
-  line-height: 1.3;
+  /* Tabular numerals — digits align perfectly in a column */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum', 'cv11';
 }
 
+/* Semantic colour modifiers — kept for charts / states that need color coding.
+   Tuned to warm palette so they don't clash with gold accents. */
 .stat-value.profit { color: var(--green); }
 .stat-value.loss { color: var(--red); }
 .stat-value.revenue { color: var(--blue); }
 .stat-value.sold { color: var(--yellow); }
 .stat-value.stock { color: var(--orange); }
 
-/* In light theme use darker shades for better contrast on white card bg */
-[data-theme="light"] .stat-value.profit { color: #15803d; }
-[data-theme="light"] .stat-value.loss { color: #b91c1c; }
-[data-theme="light"] .stat-value.revenue { color: #1d4ed8; }
-[data-theme="light"] .stat-value.sold { color: #a16207; }
-[data-theme="light"] .stat-value.stock { color: #c2410c; }
+/* In light theme semantic colors are already tuned in the :root overrides */
+[data-theme="light"] .stat-value.profit { color: var(--green); }
+[data-theme="light"] .stat-value.loss { color: var(--red); }
+[data-theme="light"] .stat-value.revenue { color: var(--blue); }
+[data-theme="light"] .stat-value.sold { color: var(--yellow); }
+[data-theme="light"] .stat-value.stock { color: var(--orange); }
 
 /* ============ FILTERS ============ */
 .filters {
@@ -2237,21 +2289,24 @@ button:focus-visible {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
+  padding: 14px 18px 14px 26px;   /* extra left padding for ticket-stub accent */
 }
 
 .stats-row .stat-label {
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1.2px;
   margin-bottom: 6px;
 }
 
 .stats-row .stat-value {
-  font-size: 20px;
-  font-weight: 600;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-red { color: var(--red-bright); }
@@ -2901,21 +2956,36 @@ tr:hover .copy-btn {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  /* Layered background: base surface + radial purple glow behind card.
-     Keeps the app feeling part of the same world as the dashboard while
-     giving the login its own distinct "focus zone" vibe. */
+  /* Login is always dark — a premium "entrance" regardless of the in-app
+     theme the user will see after signing in. We pin dark tokens locally
+     via re-declaration so all descendants of .auth-overlay render dark
+     even when the document carries [data-theme="light"]. */
+  --bg-primary: #0a0908;
+  --bg-secondary: #100e0c;
+  --bg-tertiary: #1a1714;
+  --bg-card: #1a1714;
+  --bg-hover: #231e19;
+  --border: #2d2824;
+  --border-subtle: #1f1b17;
+  --text-primary: #f5ecd7;
+  --text-secondary: #c2b7a1;
+  --text-tertiary: #8a7e6a;
+  --purple: #d4a94a;
+  --purple-hover: #f0c85a;
+  --purple-dim: #8a6e2a;
+  --purple-rgb: 212, 169, 74;
+  --on-purple: #0a0908;
+  color-scheme: dark;
+  color: var(--text-primary);
+
   background:
     radial-gradient(ellipse 900px 600px at 50% 38%, rgba(var(--purple-rgb), 0.18), transparent 70%),
     radial-gradient(ellipse 500px 400px at 85% 80%, rgba(var(--purple-rgb), 0.08), transparent 70%),
     var(--bg-primary);
   overflow: auto;
 }
-[data-theme="light"] .auth-overlay {
-  background:
-    radial-gradient(ellipse 900px 600px at 50% 38%, rgba(var(--purple-rgb), 0.1), transparent 70%),
-    radial-gradient(ellipse 500px 400px at 85% 80%, rgba(var(--purple-rgb), 0.05), transparent 70%),
-    var(--bg-primary);
-}
+/* Light-theme override for auth overlay is intentionally removed —
+   the block above already sets dark tokens under both themes. */
 .auth-overlay.hidden { display: none; }
 
 .app-locked {
@@ -2936,11 +3006,8 @@ tr:hover .copy-btn {
   backdrop-filter: blur(12px);
   position: relative;
 }
-[data-theme="light"] .auth-card {
-  box-shadow:
-    0 25px 60px -15px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(var(--purple-rgb), 0.06);
-}
+/* Light-theme override removed — auth overlay forces dark tokens locally,
+   so shadow stays as the darker variant regardless of document theme. */
 
 /* Decorative top border highlight — thin gradient line across the card top. */
 .auth-card::before {
@@ -3513,4 +3580,362 @@ tr:hover .copy-btn {
 .update-banner-close:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+/* ============================================================
+   AUTH POSTER + LAYOUT (v1.1.0)
+   Two-column auth screen: decorative poster (left) + form card (right).
+   Inherits dark tokens from .auth-overlay (which pins them locally).
+   ============================================================ */
+
+/* Override auth-overlay padding; we now want the layout to own its spacing. */
+.auth-overlay {
+  padding: 32px;
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  max-width: 1100px;
+  width: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+/* ========= LEFT: Poster (brand showcase) ========= */
+.auth-poster {
+  background:
+    radial-gradient(ellipse 500px 300px at 50% 20%, rgba(var(--purple-rgb), 0.12), transparent 60%),
+    radial-gradient(ellipse 400px 400px at 50% 80%, rgba(var(--purple-rgb), 0.06), transparent 60%),
+    var(--bg-primary);
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid var(--border);
+  min-height: 580px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative circle in upper-right (subtle depth) */
+.auth-poster::after {
+  content: '';
+  position: absolute;
+  top: 18%;
+  right: -80px;
+  width: 160px;
+  height: 160px;
+  border: 1px solid var(--purple-dim);
+  border-radius: 50%;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.auth-poster-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+.auth-poster-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.auth-poster-brand-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.auth-poster-brand-text em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--purple);
+}
+
+.auth-poster-art {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-poster-tagline {
+  position: relative;
+  z-index: 1;
+}
+.auth-poster-tagline h2 {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0 0 14px 0;
+  letter-spacing: -0.01em;
+}
+.auth-poster-tagline h2 em {
+  font-style: italic;
+  color: var(--purple);
+}
+.auth-poster-tagline p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 380px;
+  margin: 0;
+}
+
+.auth-poster-foot {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+  border-top: 1px dashed var(--border);
+  padding-top: 16px;
+  margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ========= RIGHT: Card — override shadow since wrapper already shadows ========= */
+.auth-layout .auth-card {
+  max-width: none;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+  padding: 56px 52px 48px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.auth-layout .auth-card::before {
+  /* Top gradient line still nice as a subtle accent */
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(var(--purple-rgb), 0.35), transparent);
+}
+
+/* With the poster showing the brand, the logo inside the card is redundant.
+   Hide it on wide screens; it reappears when the poster collapses. */
+.auth-layout .auth-card .auth-logo {
+  display: none;
+}
+
+/* Bigger, serif title to match the mockup */
+.auth-layout .auth-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  text-align: left;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+}
+.auth-layout .auth-sub {
+  text-align: left;
+  margin-bottom: 28px;
+}
+
+/* Auth tabs: also align left */
+.auth-layout .auth-tabs {
+  margin-bottom: 22px;
+}
+
+/* ========= Hide Backend URL on login screen only =========
+   (User setup flow: Register screen still shows it for the first device;
+   once logged in, it's stored in config and doesn't need to be re-entered.) */
+#authScreenLogin .auth-field-apiurl {
+  display: none;
+}
+
+/* ========= Responsive fallback: narrow viewport hides poster ========= */
+@media (max-width: 900px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
+  .auth-poster {
+    display: none;
+  }
+  .auth-layout .auth-card {
+    padding: 40px 32px;
+  }
+  .auth-layout .auth-card .auth-logo {
+    display: flex;
+  }
+  .auth-layout .auth-title,
+  .auth-layout .auth-sub {
+    text-align: center;
+  }
+}
+
+/* ============================================================
+   EXPENSES: Type toggle (Výdaj / Příjem) — used in modal
+   ============================================================ */
+.type-toggle {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.type-toggle-option {
+  cursor: pointer;
+  flex: 1;
+  min-width: 220px;
+}
+.type-toggle-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.type-toggle-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg-tertiary);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  user-select: none;
+}
+.type-toggle-pill:hover { border-color: var(--border); background: var(--bg-hover); }
+.type-toggle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.type-toggle-hint {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+/* Checked states — Výdaj = red, Příjem = green */
+.type-toggle-option input[type="radio"]:checked + .type-pill-expense {
+  border-color: rgba(var(--red-rgb), 0.6);
+  background: rgba(var(--red-rgb), 0.08);
+  color: var(--text-primary);
+}
+.type-toggle-option input[type="radio"]:checked + .type-pill-expense .type-toggle-dot {
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(var(--red-rgb), 0.25);
+}
+.type-toggle-option input[type="radio"]:checked + .type-pill-income {
+  border-color: rgba(var(--green-rgb), 0.6);
+  background: rgba(var(--green-rgb), 0.08);
+  color: var(--text-primary);
+}
+.type-toggle-option input[type="radio"]:checked + .type-pill-income .type-toggle-dot {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(var(--green-rgb), 0.25);
+}
+.type-toggle-option input[type="radio"]:focus-visible + .type-toggle-pill {
+  box-shadow: 0 0 0 3px rgba(var(--purple-rgb), 0.3);
+}
+
+/* ============================================================
+   EXPENSES: Type pill (small badge in table TYP column)
+   ============================================================ */
+.type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.type-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Table pill variants — distinct from the modal toggle pill styles above.
+   We use the same class names but the table context (.type-pill without
+   .type-toggle-pill) applies different padding. Selector specificity handles it. */
+.type-pill.type-pill-expense {
+  background: rgba(var(--red-rgb), 0.1);
+  color: var(--red);
+  border: 1px solid rgba(var(--red-rgb), 0.25);
+  /* Reset the modal-toggle-only properties that don't apply here */
+  padding: 3px 9px;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.type-pill.type-pill-expense .type-pill-dot { background: var(--red); }
+.type-pill.type-pill-income {
+  background: rgba(var(--green-rgb), 0.1);
+  color: var(--green);
+  border: 1px solid rgba(var(--green-rgb), 0.25);
+  padding: 3px 9px;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.type-pill.type-pill-income .type-pill-dot { background: var(--green); }
+
+/* ============================================================
+   EXPENSES: Amount display — color + sign prefix in table
+   ============================================================ */
+.amount-expense {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.amount-income {
+  color: var(--green);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle green tint on income rows to visually distinguish them from expenses */
+.row-income td {
+  background: rgba(var(--green-rgb), 0.025);
+}
+.row-income:hover td {
+  background: rgba(var(--green-rgb), 0.05);
+}
+
+/* ============================================================
+   MAIL FORWARD STATUS (v1.3.0) — personal address UI
+   ============================================================ */
+.mail-forward-ok {
+  color: var(--green);
+  font-weight: 600;
+}
+.mail-forward-warn {
+  color: var(--orange);
+  font-weight: 600;
+}
+#mailForwardAddress {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  word-break: break-all;
 }

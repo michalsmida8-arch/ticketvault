@@ -6,7 +6,7 @@
   <title>TicketVault</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script>
     // Inline theme bootstrap — runs before CSS/body render to avoid flash.
@@ -23,13 +23,64 @@
 </head>
 <body>
   <!-- Auth overlay — covers the entire app until user is authenticated.
+       Two-panel layout (v1.1.0): decorative poster on the left + functional
+       card on the right. At narrow viewport widths the poster collapses.
        Contains three screens: register (create account), login, recover (admin
        password reset via 6-digit recovery code). The backend URL is exposed
        on the login screen as an editable field so users installing on a new
        device can point at the right backend. Invite code is required for
        registration to prevent random signups on a public URL. -->
   <div id="authOverlay" class="auth-overlay">
-    <div class="auth-card">
+    <div class="auth-layout">
+
+      <!-- LEFT: Decorative poster. Static, purely visual — no interactive
+           elements. Collapses below 900px viewport width. -->
+      <aside class="auth-poster" aria-hidden="true">
+        <div class="auth-poster-brand">
+          <img src="../assets/icon-64.png" alt="" class="auth-poster-logo">
+          <div class="auth-poster-brand-text">Ticket<em>Vault</em></div>
+        </div>
+
+        <div class="auth-poster-art">
+          <!-- Big "TICKET / ADMIT ONE" SVG echoing the brand mark. -->
+          <svg width="320" height="170" viewBox="0 0 320 170" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="authTkGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#f0c85a"/>
+                <stop offset="1" stop-color="#8a6e2a"/>
+              </linearGradient>
+            </defs>
+            <path d="M 12 12 L 220 12 L 220 158 L 12 158 Z" fill="#0a0908" stroke="url(#authTkGrad)" stroke-width="1.5"/>
+            <path d="M 220 12 L 308 12 L 308 158 L 220 158 Z" fill="url(#authTkGrad)"/>
+            <line x1="220" y1="20" x2="220" y2="150" stroke="#0a0908" stroke-width="1.5" stroke-dasharray="4,4"/>
+            <text x="116" y="102" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="700" font-size="50" fill="#f0c85a" letter-spacing="4">TICKET</text>
+            <g fill="#0a0908">
+              <rect x="232" y="30" width="3" height="110"/><rect x="238" y="30" width="2" height="110"/>
+              <rect x="243" y="30" width="4" height="110"/><rect x="250" y="30" width="1" height="110"/>
+              <rect x="254" y="30" width="3" height="110"/><rect x="260" y="30" width="2" height="110"/>
+              <rect x="265" y="30" width="5" height="110"/><rect x="273" y="30" width="2" height="110"/>
+              <rect x="278" y="30" width="3" height="110"/><rect x="284" y="30" width="1" height="110"/>
+              <rect x="288" y="30" width="4" height="110"/><rect x="295" y="30" width="2" height="110"/>
+              <rect x="300" y="30" width="3" height="110"/>
+            </g>
+          </svg>
+        </div>
+
+        <div class="auth-poster-tagline">
+          <h2>Tvé vstupenky.<br>Tvůj <em>trezor</em>.</h2>
+          <p>Databáze vstupenek pro přeprodej s auto-parserem e-mailů, cloud sync a statistikami.</p>
+        </div>
+
+        <div class="auth-poster-foot">
+          <span>VERSION 1.1.0</span>
+          <span>EST. 2026</span>
+          <span>NO.0001</span>
+        </div>
+      </aside>
+
+      <!-- RIGHT: Functional auth card (existing; IDs and structure preserved
+           so all app.js handlers keep working). -->
+      <div class="auth-card">
       <div class="auth-logo">
         <img src="../assets/icon-64.png" alt="TicketVault" class="auth-logo-img theme-logo-dark">
         <img src="../assets/icon-light-64.png" alt="TicketVault" class="auth-logo-img theme-logo-light">
@@ -47,8 +98,10 @@
         <h2 class="auth-title">Vítej zpátky</h2>
         <p class="auth-sub">Přihlas se svým TicketVault účtem.</p>
         <div class="auth-form">
-          <label>Backend URL</label>
-          <input type="text" id="authLoginApiUrl" spellcheck="false" autocomplete="off" placeholder="https://...">
+          <div class="auth-field-apiurl">
+            <label for="authLoginApiUrl">Backend URL</label>
+            <input type="text" id="authLoginApiUrl" spellcheck="false" autocomplete="off" placeholder="https://...">
+          </div>
           <label>Uživatelské jméno</label>
           <input type="text" id="authLoginUsername" autocomplete="username" spellcheck="false" placeholder="tvoje_jmeno">
           <label>Heslo</label>
@@ -112,8 +165,9 @@
           <button class="btn btn-primary auth-submit" id="btnAuthRecoveryDone" disabled>Pokračovat do aplikace</button>
         </div>
       </div>
-    </div>
-  </div>
+      </div><!-- /.auth-card -->
+    </div><!-- /.auth-layout -->
+  </div><!-- /#authOverlay -->
 
   <div class="app app-locked">
 
@@ -480,33 +534,38 @@
         <header class="page-header">
           <h2 class="page-title">Výdaje &amp; předplatná</h2>
           <button class="btn btn-primary" id="btnAddExpense">
-            <span>+</span> Přidat výdaj
+            <span>+</span> Přidat položku
           </button>
         </header>
 
-        <!-- STAT CARDS -->
+        <!-- STAT CARDS (v1.2.0): Výdaje | Příjmy | Moje náklady | Počet aktivních -->
         <div class="stats-row">
           <div class="stat-card">
-            <div class="stat-label">MĚSÍČNĚ PLATÍM</div>
+            <div class="stat-label">CELKOVÉ VÝDAJE / MĚSÍC</div>
             <div class="stat-value stat-red" id="expMonthly">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">ROČNĚ PLATÍM</div>
-            <div class="stat-value stat-orange" id="expYearly">0</div>
+            <div class="stat-label">CELKOVÉ PŘÍJMY / MĚSÍC</div>
+            <div class="stat-value stat-green" id="expMonthlyIncome">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">AKTIVNÍ P&#344;EDPLATNÁ</div>
+            <div class="stat-label">MOJE NÁKLADY (NETTO)</div>
+            <div class="stat-value stat-purple" id="expNetCost">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">AKTIVNÍ POLOŽKY</div>
             <div class="stat-value stat-blue" id="expActive">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">NEJBLIŽŠÍ PLATBA</div>
-            <div class="stat-value stat-purple" id="expNextPayment" style="font-size: 15px;">—</div>
           </div>
         </div>
 
         <!-- FILTERS -->
         <div class="filters">
           <input type="text" class="filter-input" id="eFilterSearch" placeholder="Hledat název, kategorie...">
+          <select class="filter-select" id="eFilterType">
+            <option value="">Vše (výdaje + příjmy)</option>
+            <option value="expense">Jen výdaje</option>
+            <option value="income">Jen příjmy</option>
+          </select>
           <select class="filter-select" id="eFilterCategory">
             <option value="">Všechny kategorie</option>
           </select>
@@ -531,9 +590,10 @@
             <thead>
               <tr>
                 <th class="col-check"><input type="checkbox" id="eSelectAll"></th>
+                <th>TYP</th>
                 <th>NÁZEV</th>
                 <th>KATEGORIE</th>
-                <th>CENA</th>
+                <th>ČÁSTKA</th>
                 <th>FREKVENCE</th>
                 <th>NÁSLEDUJÍCÍ PLATBA</th>
                 <th>ZBÝVÁ</th>
@@ -547,8 +607,8 @@
           </table>
           <div class="empty-state" id="eEmptyState" style="display:none;">
             <div class="empty-icon">💳</div>
-            <div class="empty-title">Žádné výdaje</div>
-            <div class="empty-text">Přidej první výdaj kliknutím na "+ Přidat výdaj"</div>
+            <div class="empty-title">Žádné položky</div>
+            <div class="empty-text">Přidej první výdaj nebo příjem kliknutím na "+ Přidat položku"</div>
           </div>
         </div>
 
@@ -821,34 +881,26 @@
             <h3>📥 Příchozí emaily</h3>
           </div>
           <p class="settings-desc">
-            Přidej emailové adresy, ze kterých budeš forwardovat (osobní Gmail, pracovní, Yahoo, ...).
-            Emaily zaslané z těchto adres dostaneš <strong>jen ty</strong>, ne ostatní uživatelé.
+            Máš svoji <strong>unikátní forward adresu</strong>. V Gmailu nastav filter pro emaily od Viagogo / StubHub / atd.
+            a forwarduj je na tuto adresu — přistanou <strong>jen tobě</strong>, ne ostatním uživatelům.
           </p>
 
           <div class="form-grid" style="max-width:640px;">
             <div class="form-group form-full">
-              <label>Společná forward adresa (pro všechny uživatele)</label>
+              <label>Tvoje osobní forward adresa</label>
               <div class="mail-address-box">
-                <code id="mailForwardAddress">e39a755c78a59a3e9759@cloudmailin.net</code>
-                <button class="btn btn-dark btn-sm" id="btnCopyMailAddress" title="Kopírovat">📋 Kopírovat</button>
+                <code id="mailForwardAddress">—</code>
+                <button class="btn btn-dark btn-sm" id="btnCopyForwardAddr" title="Kopírovat">📋 Kopírovat</button>
               </div>
-              <div class="form-hint">V Gmailu nastav filter pro emaily od Viagogo/Stubhub/atd. a forward na tuto adresu.</div>
+              <div class="form-hint" id="mailForwardHint">Načítání…</div>
             </div>
 
             <div class="form-group form-full">
-              <label>Tvoje registrované odesílací adresy</label>
-              <div id="allowedSendersList" class="senders-list">
-                <div class="senders-empty">Zatím žádná adresa</div>
+              <label>Vygenerovat novou adresu</label>
+              <div class="form-hint" style="margin-bottom:8px;">
+                Vygeneruje ti nový +tag. Stará adresa okamžitě přestane fungovat — budeš muset aktualizovat filter v Gmailu.
               </div>
-            </div>
-
-            <div class="form-group form-full">
-              <label>Přidat novou odesílací adresu</label>
-              <div class="senders-add-row">
-                <input type="email" id="newSenderEmail" placeholder="tvuj.email@gmail.com" autocomplete="off">
-                <button class="btn btn-primary" id="btnAddSender">+ Přidat</button>
-              </div>
-              <div class="form-hint">Musí to být email adresa, ze které skutečně forwarduješ — ne cílová CloudMailin adresa.</div>
+              <button class="btn btn-dark" id="btnRegenMailToken">🔄 Vygenerovat novou adresu</button>
             </div>
           </div>
         </div>
@@ -1542,6 +1594,23 @@
       </div>
       <div class="modal-body">
         <div class="form-grid">
+          <div class="form-group form-full">
+            <label>Typ</label>
+            <div class="type-toggle" role="radiogroup" aria-label="Typ položky">
+              <label class="type-toggle-option">
+                <input type="radio" name="efType" value="expense" checked>
+                <span class="type-toggle-pill type-pill-expense">
+                  <span class="type-toggle-dot"></span> Výdaj <span class="type-toggle-hint">— peníze dávám</span>
+                </span>
+              </label>
+              <label class="type-toggle-option">
+                <input type="radio" name="efType" value="income">
+                <span class="type-toggle-pill type-pill-income">
+                  <span class="type-toggle-dot"></span> Příjem <span class="type-toggle-hint">— někdo mi posílá</span>
+                </span>
+              </label>
+            </div>
+          </div>
           <div class="form-group form-full">
             <label>Název *</label>
             <input type="text" id="efName" placeholder="např. Netflix, ProtonVPN, Adobe CC" list="expenseNames">

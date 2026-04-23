@@ -34,6 +34,7 @@ let state = {
   revealedPasswords: new Set(),
   expenseFilters: {
     search: '',
+    type: '',      // '', 'expense', or 'income'
     category: '',
     frequency: '',
     status: ''
@@ -123,6 +124,7 @@ function applyUiPrefsToUI() {
   // Expense filters
   const e = state.expenseFilters;
   set('#eFilterSearch', e.search);
+  set('#eFilterType', e.type);
   set('#eFilterCategory', e.category);
   set('#eFilterFrequency', e.frequency);
   set('#eFilterStatus', e.status);
@@ -989,92 +991,85 @@ async function confirmResetPassword() {
   await renderUsersList();
 }
 
-// ============ INBOUND EMAIL — SENDER WHITELIST ============
-// Shared CloudMailin endpoint is the same for everyone. Routing happens on
-// the backend by matching the email's sender address against each user's
-// allowedSenders list. Users can add multiple addresses (personal + work + ...).
+// ============ INBOUND EMAIL — PERSONAL FORWARD ADDRESS (v1.3.0) ============
+// Each user has a unique mailToken that forms the +tag in their personal
+// CloudMailin address:  <base>+<mailToken>@cloudmailin.net
+// Emails forwarded to THAT exact address route straight to this user's
+// inbox (via backend routing logic in inbox.js). No whitelist needed.
+//
+// The legacy allowedSenders whitelist is still active server-side as a
+// fallback for forwards that arrive without +tag (e.g., Apple Mail
+// sometimes strips it), but the UI no longer exposes it — users manage
+// routing via the address alone, and optionally via regeneration.
 const CLOUDMAILIN_BASE = 'e39a755c78a59a3e9759@cloudmailin.net';
 
+function buildPersonalForwardAddress(mailToken) {
+  if (!mailToken) return CLOUDMAILIN_BASE;  // fallback: legacy share-base if token missing
+  // Split 'local@domain' and insert '+tag' before @
+  const at = CLOUDMAILIN_BASE.indexOf('@');
+  if (at < 0) return CLOUDMAILIN_BASE;
+  return CLOUDMAILIN_BASE.slice(0, at) + '+' + mailToken + CLOUDMAILIN_BASE.slice(at);
+}
+
 async function loadMailForwardUI() {
-  // Shared forward address — just displays the single CloudMailin endpoint.
   const el = $('#mailForwardAddress');
-  if (el) el.textContent = CLOUDMAILIN_BASE;
-  // Reload the user's personal whitelist from the backend.
-  await refreshAllowedSenders();
-}
+  if (!el) return;
+  const mailToken = state.currentUser?.mailToken || '';
+  const address = buildPersonalForwardAddress(mailToken);
+  el.textContent = address;
+  // Stash on the element so the copy button can grab it without re-querying.
+  el.dataset.address = address;
 
-async function refreshAllowedSenders() {
-  const list = $('#allowedSendersList');
-  if (!list) return;
-  const result = await window.api.authGetAllowedSenders();
-  if (!result.success) {
-    list.innerHTML = `<div class="senders-empty">Chyba: ${escapeHtml(result.error || 'nepodařilo se načíst')}</div>`;
-    return;
-  }
-  const senders = result.senders || [];
-  if (senders.length === 0) {
-    list.innerHTML = '<div class="senders-empty">Zatím žádná adresa</div>';
-    return;
-  }
-  list.innerHTML = senders.map(s => `
-    <div class="sender-row">
-      <code>${escapeHtml(s)}</code>
-      <button class="btn btn-danger btn-sm" data-remove-sender="${escapeHtml(s)}">Odebrat</button>
-    </div>
-  `).join('');
-
-  // Wire remove buttons (re-wired on every refresh).
-  list.querySelectorAll('[data-remove-sender]').forEach(btn => {
-    btn.addEventListener('click', () => removeSender(btn.dataset.removeSender));
-  });
-}
-
-async function addSender() {
-  const input = $('#newSenderEmail');
-  const email = input.value.trim().toLowerCase();
-  if (!email) {
-    toast('Zadej emailovou adresu', 'error');
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    toast('Neplatný formát emailu', 'error');
-    return;
-  }
-  const btn = $('#btnAddSender');
-  btn.disabled = true;
-  try {
-    const result = await window.api.authAddAllowedSender({ email });
-    if (!result.success) {
-      toast(result.error || 'Přidání selhalo', 'error', 5000);
-      return;
+  // Update the "status hint" below the address
+  const hint = $('#mailForwardHint');
+  if (hint) {
+    if (mailToken) {
+      hint.innerHTML = `<span class="mail-forward-ok">✓ Unikátní pro tebe</span> — emaily z tvého Gmailu (po forwardu sem) dorazí jen do tvé DB.`;
+    } else {
+      hint.innerHTML = `<span class="mail-forward-warn">⚠ Starší účet bez vlastního tagu</span> — klikni "Vygenerovat" pro vlastní adresu.`;
     }
-    input.value = '';
-    await refreshAllowedSenders();
-    toast(`${email} přidán`, 'success');
-  } finally {
-    btn.disabled = false;
   }
 }
 
-async function removeSender(email) {
+async function copyMailForwardAddress() {
+  const el = $('#mailForwardAddress');
+  if (!el) return;
+  const addr = el.dataset.address || el.textContent || '';
+  try {
+    await navigator.clipboard.writeText(addr);
+    toast('Adresa zkopírována', 'success');
+  } catch (e) {
+    toast('Kopírování selhalo', 'error');
+  }
+}
+
+async function regenerateMailToken() {
   const res = await window.api.confirm({
     type: 'warning',
-    buttons: ['Zrušit', 'Odebrat'],
+    buttons: ['Zrušit', 'Vygenerovat novou'],
     defaultId: 1,
     cancelId: 0,
-    title: 'Odebrat odesílací adresu',
-    message: `Opravdu odebrat "${email}"?`,
-    detail: 'Emaily z této adresy už nebudou směrovány k tobě (skončí u admina jako "neznámý odesílatel").'
+    title: 'Vygenerovat novou forward adresu',
+    message: 'Opravdu vygenerovat novou adresu?',
+    detail: 'Stará adresa okamžitě přestane fungovat. Budeš muset aktualizovat forward v Gmailu, jinak ti emaily přestanou chodit.'
   });
   if (res !== 1) return;
 
-  const result = await window.api.authRemoveAllowedSender({ email });
-  if (!result.success) {
-    toast(result.error || 'Odebrání selhalo', 'error');
-    return;
+  const btn = $('#btnRegenMailToken');
+  if (btn) btn.disabled = true;
+  try {
+    const result = await window.api.authRegenerateMailToken();
+    if (!result.success) {
+      toast(result.error || 'Regenerace selhala', 'error', 5000);
+      return;
+    }
+    // Update local state and UI
+    if (state.currentUser) state.currentUser.mailToken = result.mailToken;
+    await loadMailForwardUI();
+    toast('Nová adresa vygenerována — nezapomeň aktualizovat Gmail forward', 'success', 5000);
+  } finally {
+    if (btn) btn.disabled = false;
   }
-  await refreshAllowedSenders();
-  toast('Odstraněno', 'success');
 }
 
 async function copyMailAddress() {
@@ -3597,6 +3592,9 @@ function getFilteredExpenses() {
       (e.card || '').toLowerCase().includes(q)
     );
   }
+  // Type filter — 'expense' or 'income' (items without a type are legacy
+  // expenses, so no type filter defaults them to expense).
+  if (f.type) list = list.filter(e => (e.type || 'expense') === f.type);
   if (f.category) list = list.filter(e => e.category === f.category);
   if (f.frequency) list = list.filter(e => e.frequency === f.frequency);
   if (f.status === 'active') list = list.filter(e => e.active !== false);
@@ -3632,28 +3630,55 @@ function renderExpensesPage() {
   const list = getFilteredExpenses();
   const all = state.db.expenses || [];
   const activeRecurring = all.filter(e => e.active !== false && e.frequency !== 'oneoff');
-  
-  // Stat cards — convert every expense to primary for a meaningful monthly/yearly sum.
+
+  // Stat cards (v1.2.0) — split active recurring items into expenses (default,
+  // or explicit type="expense") vs incomes (type="income"). Net cost = výdaje
+  // minus příjmy. "Moje náklady" is the headline metric the user actually
+  // pays out of pocket each month.
   const primary = getPrimaryCurrency();
   const toPrim = (e, amt) => convertCurrency(amt, e.currency || primary, primary);
-  const totalMonthly = activeRecurring.reduce((s, e) => s + toPrim(e, monthlyEquivalent(e)), 0);
-  const totalYearly = activeRecurring.reduce((s, e) => s + toPrim(e, yearlyEquivalent(e)), 0);
 
-  $('#expMonthly').textContent = formatMoney(totalMonthly, primary);
-  $('#expYearly').textContent = formatMoney(totalYearly, primary);
+  const activeExpenses = activeRecurring.filter(e => (e.type || 'expense') === 'expense');
+  const activeIncomes = activeRecurring.filter(e => e.type === 'income');
+
+  const totalMonthlyExp = activeExpenses.reduce((s, e) => s + toPrim(e, monthlyEquivalent(e)), 0);
+  const totalMonthlyInc = activeIncomes.reduce((s, e) => s + toPrim(e, monthlyEquivalent(e)), 0);
+  const netMonthly = totalMonthlyExp - totalMonthlyInc;
+
+  $('#expMonthly').textContent = formatMoney(totalMonthlyExp, primary);
+  if ($('#expMonthlyIncome')) $('#expMonthlyIncome').textContent = formatMoney(totalMonthlyInc, primary);
+  if ($('#expNetCost')) {
+    $('#expNetCost').textContent = formatMoney(netMonthly, primary);
+    // If net is negative (you earn more than you pay) show in green
+    const netEl = $('#expNetCost');
+    netEl.classList.remove('stat-red', 'stat-green', 'stat-purple');
+    if (netMonthly < 0) netEl.classList.add('stat-green');
+    else if (netMonthly > 0) netEl.classList.add('stat-red');
+    else netEl.classList.add('stat-purple');
+  }
   $('#expActive').textContent = activeRecurring.length;
-  
-  // Nearest upcoming payment
-  const upcoming = activeRecurring
-    .filter(e => e.nextPayment && daysUntil(e.nextPayment) !== null && daysUntil(e.nextPayment) >= 0)
-    .sort((a, b) => a.nextPayment.localeCompare(b.nextPayment));
-  if (upcoming.length > 0) {
-    const next = upcoming[0];
-    const d = daysUntil(next.nextPayment);
-    const u = getDaysUrgency(d);
-    $('#expNextPayment').innerHTML = `${escapeHtml(next.name)} <span style="color:var(--text-tertiary); font-size:12px;">(${u.label})</span>`;
-  } else {
-    $('#expNextPayment').textContent = '—';
+
+  // Nearest upcoming payment (legacy stat card — may or may not exist in
+  // DOM depending on user's version of the page). Kept defensive.
+  const nextPaymentEl = $('#expNextPayment');
+  if (nextPaymentEl) {
+    const upcoming = activeRecurring
+      .filter(e => e.nextPayment && daysUntil(e.nextPayment) !== null && daysUntil(e.nextPayment) >= 0)
+      .sort((a, b) => a.nextPayment.localeCompare(b.nextPayment));
+    if (upcoming.length > 0) {
+      const next = upcoming[0];
+      const d = daysUntil(next.nextPayment);
+      const u = getDaysUrgency(d);
+      nextPaymentEl.innerHTML = `${escapeHtml(next.name)} <span style="color:var(--text-tertiary); font-size:12px;">(${u.label})</span>`;
+    } else {
+      nextPaymentEl.textContent = '—';
+    }
+  }
+  // Same for legacy expYearly if it's still in DOM
+  const yearlyEl = $('#expYearly');
+  if (yearlyEl) {
+    const totalYearlyExp = activeExpenses.reduce((s, e) => s + toPrim(e, yearlyEquivalent(e)), 0);
+    yearlyEl.textContent = formatMoney(totalYearlyExp, primary);
   }
   
   // Table
@@ -3675,30 +3700,43 @@ function renderExpensesPage() {
     const freq = FREQUENCY_LABELS[e.frequency] || e.frequency;
     const isActive = e.active !== false;
     const isOneoff = e.frequency === 'oneoff';
-    
+    const isIncome = e.type === 'income';
+
     let priceDisplay = formatMoney(e.price, e.currency || getPrimaryCurrency());
     if (e.frequency === 'monthly') priceDisplay += ' <span class="per-ks">/ měsíc</span>';
     else if (e.frequency === 'yearly') priceDisplay += ' <span class="per-ks">/ rok</span>';
     else if (e.frequency === 'custom' && e.customDays) priceDisplay += ` <span class="per-ks">/ ${e.customDays} dní</span>`;
-    
+
+    // Income amounts shown with leading "+" and green tint; expenses neutral/red-ish
+    const priceCell = isIncome
+      ? `<span class="amount-income">+${priceDisplay}</span>`
+      : `<span class="amount-expense">−${priceDisplay}</span>`;
+
+    const typePill = isIncome
+      ? '<span class="type-pill type-pill-income"><span class="type-pill-dot"></span>Příjem</span>'
+      : '<span class="type-pill type-pill-expense"><span class="type-pill-dot"></span>Výdaj</span>';
+
     const urlCell = e.url
       ? `<a class="url-link" href="${escapeHtml(e.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(e.url)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>`
       : '<span style="color:var(--text-tertiary)">—</span>';
-    
+
     const statusPill = isActive
       ? '<span class="status-pill status-sold">Aktivní</span>'
       : '<span class="status-pill status-cancelled">Neaktivní</span>';
-    
-    const rowClass = urgency.urgent && isActive && !isOneoff ? 'row-urgent' : '';
-    
+
+    const rowClasses = [];
+    if (urgency.urgent && isActive && !isOneoff) rowClasses.push('row-urgent');
+    if (isIncome) rowClasses.push('row-income');
+
     return `
-      <tr data-id="${e.id}" class="${rowClass}">
+      <tr data-id="${e.id}" class="${rowClasses.join(' ')}">
         <td class="col-check"><input type="checkbox" class="e-row-check" data-id="${e.id}" ${checked}></td>
+        <td>${typePill}</td>
         <td><strong>${escapeHtml(e.name || '—')}</strong></td>
         <td>${e.category ? `<span class="cat-pill" style="background:${catColor.bg};color:${catColor.color}">${escapeHtml(e.category)}</span>` : '<span style="color:var(--text-tertiary)">—</span>'}</td>
-        <td>${priceDisplay}</td>
+        <td>${priceCell}</td>
         <td>${escapeHtml(freq || '—')}</td>
         <td>${e.nextPayment ? formatDate(e.nextPayment) : '—'}</td>
         <td><span class="days-badge ${urgency.class}">${urgency.label}</span></td>
@@ -3707,7 +3745,7 @@ function renderExpensesPage() {
         <td>${statusPill}</td>
         <td class="col-actions">
           <div class="actions-cell">
-            ${!isOneoff && isActive ? `<button class="btn btn-success btn-sm" data-e-action="paid" data-id="${e.id}" title="Zaplaceno - posune datum na další období">✓ Zaplaceno</button>` : ''}
+            ${!isOneoff && isActive ? `<button class="btn btn-success btn-sm" data-e-action="paid" data-id="${e.id}" title="${isIncome ? 'Obdrženo' : 'Zaplaceno'} — posune datum na další období">✓ ${isIncome ? 'Přijato' : 'Zaplaceno'}</button>` : ''}
             <button class="btn btn-clone btn-sm" data-e-action="clone" data-id="${e.id}" title="Klonovat">🗐</button>
             <button class="btn btn-dark btn-sm" data-e-action="edit" data-id="${e.id}">Edit</button>
             <button class="btn btn-danger btn-sm" data-e-action="delete" data-id="${e.id}">Del</button>
@@ -3759,10 +3797,15 @@ function renderEBulkActions() {
 function openExpenseModal(exp = null) {
   const isEditing = exp && exp.id;
   state.editingExpense = isEditing ? exp : null;
+  const typeValue = exp?.type === 'income' ? 'income' : 'expense';
   $('#eModalTitle').textContent = isEditing
-    ? 'Upravit výdaj'
-    : (exp ? 'Klonovat výdaj (nová kopie)' : 'Přidat výdaj');
-  
+    ? (typeValue === 'income' ? 'Upravit příjem' : 'Upravit výdaj')
+    : (exp ? 'Klonovat položku (nová kopie)' : 'Přidat položku');
+
+  // Set the Výdaj / Příjem radio
+  const typeRadio = document.querySelector(`input[name="efType"][value="${typeValue}"]`);
+  if (typeRadio) typeRadio.checked = true;
+
   $('#efName').value = exp?.name || '';
   $('#efCategory').value = exp?.category || '';
   $('#efPrice').value = exp?.price || '';
@@ -3811,9 +3854,14 @@ async function saveExpense() {
   }
   
   const customDays = frequency === 'custom' ? parseInt($('#efCustomDays').value) || 30 : null;
-  
+
+  // Read the Výdaj / Příjem radio; default to 'expense' for backward compat
+  const typeChecked = document.querySelector('input[name="efType"]:checked');
+  const type = typeChecked && typeChecked.value === 'income' ? 'income' : 'expense';
+
   const exp = {
     ...(state.editingExpense || {}),
+    type,
     name,
     category: $('#efCategory').value.trim(),
     price,
@@ -3827,15 +3875,16 @@ async function saveExpense() {
     notes: $('#efNotes').value.trim(),
     active: $('#efActive').checked
   };
-  
+
   const saved = await window.api.upsertExpense(exp);
   if (!state.db.expenses) state.db.expenses = [];
   const idx = state.db.expenses.findIndex(x => x.id === saved.id);
   if (idx >= 0) state.db.expenses[idx] = saved;
   else state.db.expenses.push(saved);
-  
+
   closeModal('modalExpense');
-  toast(state.editingExpense ? 'Výdaj upraven' : 'Výdaj přidán', 'success');
+  const label = type === 'income' ? 'Příjem' : 'Výdaj';
+  toast(state.editingExpense ? `${label} upraven` : `${label} přidán`, 'success');
   renderExpensesPage();
 }
 
@@ -5391,6 +5440,11 @@ function setupEventListeners() {
     saveUiPrefs();
     renderExpensesPage();
   });
+  $('#eFilterType')?.addEventListener('change', (ev) => {
+    state.expenseFilters.type = ev.target.value;
+    saveUiPrefs();
+    renderExpensesPage();
+  });
   $('#eFilterFrequency')?.addEventListener('change', (ev) => {
     state.expenseFilters.frequency = ev.target.value;
     saveUiPrefs();
@@ -5402,8 +5456,9 @@ function setupEventListeners() {
     renderExpensesPage();
   });
   $('#btnEReset')?.addEventListener('click', () => {
-    state.expenseFilters = { search: '', category: '', frequency: '', status: '' };
+    state.expenseFilters = { search: '', type: '', category: '', frequency: '', status: '' };
     $('#eFilterSearch').value = '';
+    if ($('#eFilterType')) $('#eFilterType').value = '';
     $('#eFilterCategory').value = '';
     $('#eFilterFrequency').value = '';
     $('#eFilterStatus').value = '';
@@ -5529,11 +5584,9 @@ function setupEventListeners() {
   $('#btnSaveEmailSettings')?.addEventListener('click', saveEmailSettings);
   $('#btnTestDigest')?.addEventListener('click', sendTestDigest);
   $('#btnCopyMailAddress')?.addEventListener('click', copyMailAddress);
-  $('#btnAddSender')?.addEventListener('click', addSender);
-  // Enter in email input adds the sender.
-  $('#newSenderEmail')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); addSender(); }
-  });
+  // v1.3.0 — personal forward address: copy + regenerate
+  $('#btnCopyForwardAddr')?.addEventListener('click', copyMailForwardAddress);
+  $('#btnRegenMailToken')?.addEventListener('click', regenerateMailToken);
   $('#btnSaveCurrencySettings')?.addEventListener('click', saveCurrencySettings);
   $('#btnRefreshRates')?.addEventListener('click', refreshRates);
   // Enter-to-submit in add-user modal

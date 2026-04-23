@@ -829,6 +829,19 @@ ipcMain.handle('auth:testDigest', async () => {
   }
 });
 
+// Regenerate the user's personal mailToken (the +tag in their forward address).
+// Returns the new token so the UI can immediately show the updated address.
+// Note: the old token stops working as soon as this returns — the user must
+// update their Gmail forward to use the new address.
+ipcMain.handle('auth:regenerateMailToken', async () => {
+  try {
+    const data = await authFetchWithToken('/auth/regenerate-mail-token', { method: 'POST' });
+    return { success: true, mailToken: data.mailToken };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 // ---- Admin user management (all backend-side permission-checked) ----
 
 ipcMain.handle('auth:listUsers', async () => {
