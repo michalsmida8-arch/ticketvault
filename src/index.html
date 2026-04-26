@@ -1353,23 +1353,22 @@
           </div>
           <div class="form-group">
             <label>Platforma nákupu</label>
-            <select id="fPurchasePlatform">
-              <option value="">— Nezadáno —</option>
-              <option value="Ticketmaster">Ticketmaster</option>
-              <option value="SeeTickets">See Tickets</option>
-              <option value="GigsAndTours">Gigs and Tours</option>
-              <option value="AXS">AXS</option>
-              <option value="Eventim">Eventim</option>
-              <option value="Ticketone">TicketOne</option>
-              <option value="Entradas">Entradas.com</option>
-              <option value="MEOBlueticket">MEO Blueticket</option>
-              <option value="Ticketportal">Ticketportal</option>
-              <option value="Stubhub">Stubhub</option>
-              <option value="Viagogo">Viagogo</option>
-              <option value="Seatgeek">Seatgeek</option>
-              <option value="Vivid">Vivid Seats</option>
-              <option value="Other">Jiná</option>
-            </select>
+            <input type="text" id="fPurchasePlatform" list="purchasePlatformOptions" placeholder="Napiš nebo vyber..." autocomplete="off">
+            <datalist id="purchasePlatformOptions">
+              <option value="Ticketmaster">
+              <option value="See Tickets">
+              <option value="Gigs and Tours">
+              <option value="AXS">
+              <option value="Eventim">
+              <option value="TicketOne">
+              <option value="Entradas.com">
+              <option value="MEO Blueticket">
+              <option value="Ticketportal">
+              <option value="Stubhub">
+              <option value="Viagogo">
+              <option value="Seatgeek">
+              <option value="Vivid Seats">
+            </datalist>
           </div>
           <div class="form-group">
             <label>Platforma prodeje</label>
