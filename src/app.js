@@ -1383,7 +1383,7 @@ function updateClock() {
 async function refreshDb() {
   state.db = await window.api.loadDb();
   if (!state.db.tickets) state.db.tickets = [];
-  
+
   // Show cloud offline warning if applicable
   if (state.db._offline) {
     toast('⚠️ Cloud nedostupný, zobrazuji lokální cache: ' + (state.db._cloudError || ''), 'error', 5000);
@@ -1391,7 +1391,7 @@ async function refreshDb() {
   } else {
     updateCloudBadge(false);
   }
-  
+
   populateYearFilter();
   render();
 }
@@ -1617,6 +1617,7 @@ function getFilteredTickets() {
   list.sort((a, b) => {
     let av, bv;
     if (state.sortBy === 'profit') { av = calcProfit(a); bv = calcProfit(b); }
+    else if (state.sortBy === 'hold') { av = calcHoldDays(a); bv = calcHoldDays(b); }
     else { av = a[state.sortBy]; bv = b[state.sortBy]; }
     if (typeof av === 'string') { av = av.toLowerCase(); bv = (bv || '').toLowerCase(); }
     av = av ?? ''; bv = bv ?? '';
@@ -1626,6 +1627,18 @@ function getFilteredTickets() {
   });
   
   return list;
+}
+
+// Compute hold duration (days). Used by both the renderer and the sort comparator.
+// Only sold/delivered tickets have a meaningful hold — for unsold returns -1
+// so they sort to the bottom regardless of direction.
+function calcHoldDays(t) {
+  if (!t || !t.purchaseDate || !t.saleDate) return -1;
+  if (t.status !== 'sold' && t.status !== 'delivered') return -1;
+  const p = new Date(t.purchaseDate);
+  const s = new Date(t.saleDate);
+  if (isNaN(p) || isNaN(s)) return -1;
+  return Math.max(0, Math.round((s - p) / 86400000));
 }
 
 function renderStats() {
@@ -1741,7 +1754,7 @@ function renderTickets() {
             </div>
           </div>
         </td>
-        <td>${t.eventDate || '—'}</td>
+        <td class="col-date">${t.eventDate || '—'}</td>
         <td>${escapeHtml(t.venue || '—')}</td>
         <td>${escapeHtml([t.section, t.row].filter(Boolean).join(', ') || '—')}</td>
         <td>${escapeHtml(t.account || '—')}</td>
@@ -1757,6 +1770,18 @@ function renderTickets() {
         <td><span class="status-pill status-${t.status || 'available'}">${statusLabel}</span></td>
         <td title="${(Number(t.quantity) || 1) > 1 ? 'Cena za 1 ks: ' + formatMoney(t.purchasePrice, ticketCurrency(t)) : ''}">${formatMoney(calcCost(t), ticketCurrency(t))}${(Number(t.quantity) || 1) > 1 ? ` <span class="per-ks">(${formatMoney(t.purchasePrice, ticketCurrency(t))}/ks)</span>` : ''}</td>
         <td title="${isSoldOrDelivered && (Number(t.quantity) || 1) > 1 ? 'Cena za 1 ks: ' + formatMoney(t.salePrice, ticketCurrency(t)) : ''}">${isSoldOrDelivered ? formatMoney(calcRevenue(t), ticketCurrency(t)) + ((Number(t.quantity) || 1) > 1 ? ` <span class="per-ks">(${formatMoney(t.salePrice, ticketCurrency(t))}/ks)</span>` : '') : '—'}</td>
+        <td class="col-hold">${(() => {
+          // HOLD = days between purchase and sale.
+          // Only shown for sold/delivered tickets — for unsold tickets the
+          // "hold" is undefined (we haven't realized the timing yet).
+          if (!isSoldOrDelivered) return '<span class="hold-na">—</span>';
+          if (!t.purchaseDate || !t.saleDate) return '<span class="hold-na">—</span>';
+          const purchaseD = new Date(t.purchaseDate);
+          const saleD = new Date(t.saleDate);
+          if (isNaN(purchaseD) || isNaN(saleD)) return '<span class="hold-na">—</span>';
+          const days = Math.max(0, Math.round((saleD - purchaseD) / 86400000));
+          return `<span class="hold-final" title="Prodáno za ${days} dní od nákupu">${days} d</span>`;
+        })()}</td>
         <td class="${profitClass}">${isSoldOrDelivered ? formatMoney(profit, ticketCurrency(t)) : '—'}</td>
         <td>${isSoldOrDelivered ? `<span class="roi-pill ${roiClass}">${roi.toFixed(1)}%</span>` : '—'}</td>
         <td class="col-actions">
@@ -3643,6 +3668,9 @@ function renderExpensesPage() {
   // minus příjmy. "Moje náklady" is the headline metric the user actually
   // pays out of pocket each month.
   const primary = getPrimaryCurrency();
+  // Convert to primary currency — fallback to EUR (not primary!) so that
+  // legacy items without explicit currency don't "drift" when user changes
+  // primary. We assume existing items are EUR (most common default in CZ/EU).
   const toPrim = (e, amt) => convertCurrency(amt, e.currency || primary, primary);
 
   const activeExpenses = activeRecurring.filter(e => (e.type || 'expense') === 'expense');
@@ -3709,6 +3737,8 @@ function renderExpensesPage() {
     const isOneoff = e.frequency === 'oneoff';
     const isIncome = e.type === 'income';
 
+    // After migration (see refreshDb), currency should always be set. Fallback
+    // to primary only for the fleeting moment between load and migration save.
     let priceDisplay = formatMoney(e.price, e.currency || getPrimaryCurrency());
     if (e.frequency === 'monthly') priceDisplay += ' <span class="per-ks">/ měsíc</span>';
     else if (e.frequency === 'yearly') priceDisplay += ' <span class="per-ks">/ rok</span>';
@@ -4035,7 +4065,118 @@ function renderStatsPage() {
   if ($('#sAvgRoi')) $('#sAvgRoi').textContent = avgRoi.toFixed(1) + '%';
   if ($('#sDelivered')) $('#sDelivered').textContent = deliveredRatio;
   if ($('#sSuccessRate')) $('#sSuccessRate').textContent = successRate.toFixed(0) + '%';
-  
+
+  // ============================================================
+  // KPI INSIGHTS — computed from sold tickets, displayed in the
+  // four-panel row beneath the hero card.
+  // ============================================================
+
+  // Hero subtitle: "z 50 prodaných lístků"
+  const subEl = $('#sProfitSub');
+  if (subEl) {
+    if (soldQty > 0) {
+      const perTicket = totalProfit / soldQty;
+      subEl.innerHTML = `z <strong>${soldQty}</strong> prodaných lístků · ø <strong>${formatMoney(perTicket, getPrimaryCurrency())}</strong> / ks`;
+    } else {
+      subEl.textContent = 'Žádný prodej zatím nezaznamenán';
+    }
+  }
+
+  // 1) BEST EVENT — highest total profit
+  if ($('#iBestEvent')) {
+    const eventProfitMap = {};
+    sold.forEach(t => {
+      const name = t.eventName || '—';
+      eventProfitMap[name] = (eventProfitMap[name] || 0) + calcProfitInPrimary(t);
+    });
+    const topEvent = Object.entries(eventProfitMap).sort((a, b) => b[1] - a[1])[0];
+    if (topEvent) {
+      $('#iBestEvent').textContent = topEvent[0];
+      $('#iBestEvent').title = topEvent[0];   // tooltip for truncated names
+      $('#iBestEventSub').textContent = `+${formatMoney(topEvent[1], getPrimaryCurrency())}`;
+    } else {
+      $('#iBestEvent').textContent = '—';
+      $('#iBestEventSub').textContent = '—';
+    }
+  }
+
+  // 2) ROI THIS MONTH vs all-time average — shows whether your current
+  // month is hot or cold compared to your historical average performance.
+  // "This month" is based on SALE date (when you actually realized the profit).
+  if ($('#iRoiThisMonth')) {
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    const thisMonth = now.getMonth();
+
+    const soldThisMonth = sold.filter(t => {
+      if (!t.saleDate) return false;
+      const d = new Date(t.saleDate);
+      if (isNaN(d)) return false;
+      return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+    });
+
+    if (soldThisMonth.length > 0) {
+      const monthRoi = soldThisMonth.reduce((s, t) => s + calcRoi(t), 0) / soldThisMonth.length;
+      // Relative difference: "tento měsíc je o X % lepší/horší než průměr"
+      // Formula: (this_month - avg) / |avg| × 100
+      // Using |avg| in the denominator handles negative averages correctly:
+      // a swing from -10% avg to +5% should show "better", not flipped sign.
+      let relativeDiff = 0;
+      if (avgRoi !== 0) {
+        relativeDiff = ((monthRoi - avgRoi) / Math.abs(avgRoi)) * 100;
+      }
+      $('#iRoiThisMonth').textContent = `${monthRoi.toFixed(1)}%`;
+      const arrow = relativeDiff > 0 ? '▲' : (relativeDiff < 0 ? '▼' : '·');
+      const trendClass = relativeDiff > 0 ? 'trend-up' : (relativeDiff < 0 ? 'trend-down' : 'trend-neutral');
+      // If avg is 0 we can't compute a relative diff — show absolute instead.
+      const diffStr = avgRoi === 0
+        ? `${monthRoi >= 0 ? '+' : ''}${monthRoi.toFixed(1)}%`
+        : `${arrow} ${Math.abs(relativeDiff).toFixed(1)}%`;
+      $('#iRoiThisMonthSub').innerHTML = `<span class="${trendClass}">${diffStr}</span> vs průměr (${avgRoi.toFixed(1)}%)`;
+    } else {
+      $('#iRoiThisMonth').textContent = '—';
+      $('#iRoiThisMonthSub').textContent = `průměr za vše: ${avgRoi.toFixed(1)}%`;
+    }
+  }
+
+  // 3) AVG DAYS PURCHASE → SALE
+  if ($('#iAvgDays')) {
+    const withBoth = sold.filter(t => t.purchaseDate && t.saleDate);
+    if (withBoth.length > 0) {
+      const totalDays = withBoth.reduce((s, t) => {
+        const d1 = new Date(t.purchaseDate);
+        const d2 = new Date(t.saleDate);
+        return s + Math.max(0, (d2 - d1) / 86400000);
+      }, 0);
+      const avg = totalDays / withBoth.length;
+      $('#iAvgDays').textContent = `${avg.toFixed(0)} dní`;
+    } else {
+      $('#iAvgDays').textContent = '—';
+    }
+  }
+
+  // 4) BEST MONTH — highest profit by event-date month
+  if ($('#iBestMonth')) {
+    const monthProfit = {};
+    const CZ_MONTHS_LONG = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+    sold.forEach(t => {
+      if (!t.eventDate) return;
+      const d = new Date(t.eventDate);
+      if (isNaN(d)) return;
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      monthProfit[key] = (monthProfit[key] || 0) + calcProfitInPrimary(t);
+    });
+    const topMonth = Object.entries(monthProfit).sort((a, b) => b[1] - a[1])[0];
+    if (topMonth) {
+      const [year, monthIdx] = topMonth[0].split('-');
+      $('#iBestMonth').textContent = `${CZ_MONTHS_LONG[parseInt(monthIdx)]} ${year}`;
+      $('#iBestMonthSub').textContent = `+${formatMoney(topMonth[1], getPrimaryCurrency())}`;
+    } else {
+      $('#iBestMonth').textContent = '—';
+      $('#iBestMonthSub').textContent = '—';
+    }
+  }
+
   renderCharts(sold, all);
 }
 
@@ -4136,6 +4277,14 @@ function renderCharts(sold, all) {
   });
   
   renderOrEmpty('chartCumulative', cumulData.length > 0, 'Žádná data. Prodej vstupenku pro zobrazení grafu.', (canvas) => {
+    // Build a vertical gradient: gold near the line → fully transparent at bottom.
+    // This mimics premium dashboard charts (Stripe, Linear, Bloomberg).
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height || 300);
+    gradient.addColorStop(0, `rgba(${chartPurpleRgb}, 0.35)`);
+    gradient.addColorStop(0.5, `rgba(${chartPurpleRgb}, 0.12)`);
+    gradient.addColorStop(1, `rgba(${chartPurpleRgb}, 0)`);
+
     state.charts.cumulative = new Chart(canvas, {
       type: 'line',
       data: {
@@ -4144,15 +4293,18 @@ function renderCharts(sold, all) {
           label: `Zisk (${getPrimaryCurrency()})`,
           data: cumulData.map(d => d.y),
           borderColor: chartPurple,
-          backgroundColor: chartFill,
+          backgroundColor: gradient,
           fill: true,
-          tension: 0.3,
-          pointRadius: 4,
+          tension: 0.35,
+          // Most points subtle, last point emphasized (modern dashboard pattern).
+          pointRadius: cumulData.map((_, i) => i === cumulData.length - 1 ? 6 : 0),
+          pointHoverRadius: 7,
           pointBackgroundColor: chartPurple,
           pointBorderColor: chartPointBorder,
-          pointBorderWidth: 1.5,
-          pointHoverRadius: 6,
-          borderWidth: 2
+          pointBorderWidth: 2,
+          borderWidth: 2.5,
+          // Smoother curve when there are many points
+          cubicInterpolationMode: 'monotone'
         }]
       },
       options: {
@@ -4193,6 +4345,14 @@ function renderCharts(sold, all) {
   const topEvents = Object.entries(eventProfits).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   renderOrEmpty('chartTopEvents', topEvents.length > 0, 'Žádné prodané eventy.', (canvas) => {
+    // Gold gradient by rank: #1 = brightest gold, #5 = subdued.
+    // Negative profits stay red regardless of rank.
+    const goldRamp = ['#f0c85a', '#d4a94a', '#b8923a', '#9c7c2a', '#7d6420'];
+    const topColors = topEvents.map((e, i) => {
+      if (e[1] < 0) return 'rgba(208, 107, 90, 0.85)';
+      return goldRamp[Math.min(i, goldRamp.length - 1)];
+    });
+
     state.charts.top = new Chart(canvas, {
       type: 'bar',
       data: {
@@ -4200,8 +4360,8 @@ function renderCharts(sold, all) {
         datasets: [{
           label: `Profit (${getPrimaryCurrency()})`,
           data: topEvents.map(e => e[1]),
-          backgroundColor: topEvents.map(e => e[1] >= 0 ? '#10b981' : '#ef4444'),
-          borderRadius: 4,
+          backgroundColor: topColors,
+          borderRadius: 6,
           barThickness: 22
         }]
       },
@@ -4238,6 +4398,20 @@ function renderCharts(sold, all) {
     .slice(0, 8);
   
   renderOrEmpty('chartRoi', roiList.length > 0, 'Žádné prodané eventy.', (canvas) => {
+    // Semantic ROI tiers — instant visual signal without reading numbers:
+    //   ≥150%  emerald (excellent — doubled+)
+    //   100–149%  green (very good)
+    //   50–99%  gold (decent)
+    //   1–49%  yellow (low margin)
+    //   <0%   red (loss)
+    function roiColor(roi) {
+      if (roi < 0) return '#d06b5a';      // loss — warm red
+      if (roi < 50) return '#c98855';     // low — orange/copper
+      if (roi < 100) return '#d4a94a';    // decent — gold
+      if (roi < 150) return '#9bb86a';    // very good — olive green
+      return '#5fa874';                   // excellent — emerald
+    }
+
     state.charts.roi = new Chart(canvas, {
       type: 'bar',
       data: {
@@ -4245,8 +4419,8 @@ function renderCharts(sold, all) {
         datasets: [{
           label: 'ROI (%)',
           data: roiList.map(e => e[1]),
-          backgroundColor: roiList.map(e => e[1] >= 0 ? '#10b981' : '#ef4444'),
-          borderRadius: 4,
+          backgroundColor: roiList.map(e => roiColor(e[1])),
+          borderRadius: 6,
           barThickness: 22
         }]
       },
@@ -4300,6 +4474,30 @@ function renderCharts(sold, all) {
   const statusColors = statusKeys.map(k => statusColorMap[k] || '#9333ea');
   
   renderOrEmpty('chartStatus', statusKeys.length > 0, 'Žádné eventy.', (canvas) => {
+    // Center text plugin — shows total quantity in the donut hole.
+    // Built inline because we don't ship Chart.js plugins separately.
+    const totalForCenter = Object.values(statusData).reduce((s, v) => s + v, 0);
+    const centerTextPlugin = {
+      id: 'donutCenterText',
+      afterDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom } } = chart;
+        const cx = (left + right) / 2;
+        const cy = (top + bottom) / 2;
+        ctx.save();
+        // Number
+        ctx.fillStyle = rootStyle.getPropertyValue('--text-primary').trim() || '#fafafa';
+        ctx.font = "600 28px 'Playfair Display', serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(totalForCenter), cx, cy - 8);
+        // Label
+        ctx.fillStyle = rootStyle.getPropertyValue('--text-tertiary').trim() || '#71717a';
+        ctx.font = "600 9px 'JetBrains Mono', monospace";
+        ctx.textBaseline = 'middle';
+        ctx.fillText('LÍSTKŮ CELKEM', cx, cy + 16);
+        ctx.restore();
+      }
+    };
     state.charts.status = new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -4307,25 +4505,28 @@ function renderCharts(sold, all) {
         datasets: [{
           data: Object.values(statusData),
           backgroundColor: statusColors,
-          borderColor: '#1a1a24',
-          borderWidth: 2,
-          hoverOffset: 8
+          borderColor: rootStyle.getPropertyValue('--bg-card').trim() || '#1a1714',
+          borderWidth: 3,
+          hoverOffset: 12,
+          // Round the segment edges for premium look
+          borderRadius: 4
         }]
       },
+      plugins: [centerTextPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '60%',
+        cutout: '72%',
         plugins: {
-          legend: { 
-            position: 'right', 
-            labels: { 
-              color: tickColorPrimary, 
-              font: { size: 12 }, 
+          legend: {
+            position: 'right',
+            labels: {
+              color: tickColorPrimary,
+              font: { size: 12 },
               padding: 14,
               usePointStyle: true,
               pointStyle: 'circle'
-            } 
+            }
           },
           tooltip: {
             callbacks: {
@@ -4574,6 +4775,16 @@ function openTicketModal(ticket = null) {
   $('#fBuyerEmail').value = ticket?.buyerEmail || '';
   $('#fBuyerPhone').value = ticket?.buyerPhone || '';
   $('#fSaleDate').value = ticket?.saleDate || '';
+  // Purchase date — default to today for brand-new tickets only.
+  // For Edit (isEditing) we use whatever the ticket has.
+  // For Clone (ticket && !isEditing) we leave it empty (user re-fills).
+  if (ticket?.purchaseDate) {
+    $('#fPurchaseDate').value = ticket.purchaseDate;
+  } else if (!ticket) {
+    $('#fPurchaseDate').value = new Date().toISOString().slice(0, 10);
+  } else {
+    $('#fPurchaseDate').value = '';
+  }
   updateBuyerSectionVisibility();
   
   // Reset prefill UI
@@ -4833,7 +5044,8 @@ async function saveTicket() {
     buyerName: $('#fBuyerName').value.trim() || undefined,
     buyerEmail: $('#fBuyerEmail').value.trim() || undefined,
     buyerPhone: $('#fBuyerPhone').value.trim() || undefined,
-    saleDate: $('#fSaleDate').value || undefined
+    saleDate: $('#fSaleDate').value || undefined,
+    purchaseDate: $('#fPurchaseDate').value || undefined
   };
   
   await window.api.upsertTicket(ticket);

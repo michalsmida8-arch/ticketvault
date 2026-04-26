@@ -417,6 +417,7 @@
                 <th>STATUS</th>
                 <th class="sortable" data-sort="purchasePrice">NÁKUP <span class="sort-ico">↕</span></th>
                 <th class="sortable" data-sort="salePrice">PRODEJ <span class="sort-ico">↕</span></th>
+                <th class="sortable" data-sort="hold" title="Doba mezi nákupem a prodejem">HOLD <span class="sort-ico">↕</span></th>
                 <th class="sortable" data-sort="profit">PROFIT <span class="sort-ico">↕</span></th>
                 <th>ROI</th>
                 <th>AKCE</th>
@@ -482,23 +483,80 @@
           <button class="btn btn-dark" id="btnStatsReset">× Reset</button>
         </div>
 
-        <!-- 4 STAT CARDS -->
-        <div class="stats-grid stats-grid-4">
-          <div class="stat-card">
-            <div class="stat-label">CELKOVÝ PROFIT</div>
-            <div class="stat-value profit" id="sProfit">0,00 EUR</div>
+        <!-- TOP ROW: HERO + 3 SECONDARY KPI CARDS -->
+        <div class="stats-hero-row">
+          <!-- HERO: Total Profit (the headline metric) -->
+          <div class="hero-card">
+            <div class="hero-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+                <polyline points="16 7 22 7 22 13"/>
+              </svg>
+            </div>
+            <div class="hero-label">CELKOVÝ PROFIT</div>
+            <div class="hero-value" id="sProfit">0,00 EUR</div>
+            <div class="hero-sub" id="sProfitSub">—</div>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">PRŮMĚRNÝ ROI</div>
-            <div class="stat-value revenue" id="sAvgRoi">0,0%</div>
+
+          <!-- 3 secondary cards in a column -->
+          <div class="stats-secondary">
+            <div class="stat-card stat-card-mini">
+              <div class="mini-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>
+                </svg>
+              </div>
+              <div class="mini-content">
+                <div class="stat-label">PRŮMĚRNÝ ROI</div>
+                <div class="stat-value revenue" id="sAvgRoi">0,0%</div>
+              </div>
+            </div>
+            <div class="stat-card stat-card-mini">
+              <div class="mini-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <div class="mini-content">
+                <div class="stat-label">DORUČENO</div>
+                <div class="stat-value profit" id="sDelivered">0 / 0</div>
+              </div>
+            </div>
+            <div class="stat-card stat-card-mini">
+              <div class="mini-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div class="mini-content">
+                <div class="stat-label">ÚSPĚŠNOST PRODEJE</div>
+                <div class="stat-value profit" id="sSuccessRate">0%</div>
+              </div>
+            </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">DORUČENO ✓</div>
-            <div class="stat-value profit" id="sDelivered">0 / 0</div>
+        </div>
+
+        <!-- KPI INSIGHTS ROW — 4 mini panels with key business intelligence -->
+        <div class="kpi-insights">
+          <div class="insight-panel">
+            <div class="insight-label">🏆 NEJLEPŠÍ EVENT</div>
+            <div class="insight-value" id="iBestEvent">—</div>
+            <div class="insight-sub" id="iBestEventSub">—</div>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">ÚSPĚŠNOST PRODEJE</div>
-            <div class="stat-value profit" id="sSuccessRate">0%</div>
+          <div class="insight-panel">
+            <div class="insight-label">📊 ROI TENTO MĚSÍC</div>
+            <div class="insight-value" id="iRoiThisMonth">—</div>
+            <div class="insight-sub" id="iRoiThisMonthSub">—</div>
+          </div>
+          <div class="insight-panel">
+            <div class="insight-label">⚡ PRŮMĚR DO PRODEJE</div>
+            <div class="insight-value" id="iAvgDays">—</div>
+            <div class="insight-sub">od nákupu k prodeji</div>
+          </div>
+          <div class="insight-panel">
+            <div class="insight-label">📅 NEJLEPŠÍ MĚSÍC</div>
+            <div class="insight-value" id="iBestMonth">—</div>
+            <div class="insight-sub" id="iBestMonthSub">—</div>
           </div>
         </div>
 
@@ -1284,6 +1342,10 @@
           <div class="form-group">
             <label>Nákupní cena</label>
             <input type="number" id="fPurchasePrice" step="0.01" placeholder="89.61">
+          </div>
+          <div class="form-group">
+            <label>Datum nákupu</label>
+            <input type="date" id="fPurchaseDate">
           </div>
           <div class="form-group">
             <label>Prodejní cena</label>
