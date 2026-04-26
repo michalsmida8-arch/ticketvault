@@ -68,6 +68,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Build script invokes electron-builder with --publish always, which
+      # uploads artifacts to the GitHub Release that create-release made above.
+      # Without --publish, electron-builder only builds locally and leaves
+      # the Release empty (which is what bit us in 1.6.5).
       # Mac build is "continue-on-error" because electron-builder sometimes
       # exits 1 during DMG cleanup (hdiutil detach) even after artifacts
       # are successfully built and uploaded. Win build is strict.
@@ -96,3 +100,22 @@ jobs:
             dist/*.blockmap
           if-no-files-found: warn
           retention-days: 14
+
+      # Belt-and-suspenders: if electron-builder's --publish flag silently
+      # didn't upload (auth quirk, race condition with create-release, etc.),
+      # we explicitly upload the dist/ artifacts to the release here. This
+      # action is idempotent and won't replace files that already exist.
+      - name: Upload to GitHub Release (fallback)
+        if: always() && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.yml
+            dist/*.blockmap
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
