@@ -3333,6 +3333,15 @@ async function applyInboxSale(inboxId, ticketId) {
   const platformLower = (p.platform || '').toLowerCase();
   const salePricePerKs = p.pricePerTicket || (p.totalAmount && p.quantity ? p.totalAmount / p.quantity : 0);
 
+  // Reconcile quantities: the email tells us how many were sold (p.quantity),
+  // the ticket row says how many we have (ticket.quantity). Three possible cases:
+  //   1. Email sold == ticket has  → mark whole ticket sold (current behavior)
+  //   2. Email sold <  ticket has  → SPLIT: sold portion + remaining row (NEW)
+  //   3. Email sold >  ticket has  → unusual: probably bad parser data, warn and
+  //                                  fall back to marking whole ticket sold.
+  const emailQty = Number(p.quantity) || 1;
+  const ticketQty = Number(ticket.quantity) || 1;
+
   // Build a short note about the gross-vs-net split so the user can see at a
   // glance how much StubHub's commission ate from the buyer's payment.
   let saleNote = '';
@@ -3342,6 +3351,63 @@ async function applyInboxSale(inboxId, ticketId) {
     saleNote = `Prodej z ${p.platform}: kupující zaplatil ${p.grossSubtotal}, tobě přišlo ${p.totalAmount} (provize ${fee}, ${pct}%)`;
   }
 
+  // PARTIAL SALE — only some of the quantity was sold. Mirror the manual sell
+  // modal flow: shrink the original row to the sold qty, create a new "available"
+  // row for the remaining qty.
+  if (emailQty < ticketQty) {
+    const remaining = ticketQty - emailQty;
+
+    const splitNote = `Rozděleno: ${emailQty} z ${ticketQty} ks prodáno (z emailu)`;
+    const soldTicket = {
+      ...ticket,
+      quantity: emailQty,
+      status: 'sold',
+      salePrice: salePricePerKs,
+      currency: ticket.currency || p.currency || getDefaultTicketCurrency(),
+      saleDate: new Date().toISOString().slice(0, 10),
+      buyerName: p.buyerName || ticket.buyerName,
+      buyerEmail: p.buyerEmail || ticket.buyerEmail,
+      notes: [ticket.notes, saleNote, splitNote].filter(Boolean).join(' | '),
+      externalIds: { ...(ticket.externalIds || {}) }
+    };
+    if (p.orderId) {
+      if (platformLower.includes('viagogo')) soldTicket.externalIds.viagogoOrderId = p.orderId;
+      else if (platformLower.includes('stubhub')) soldTicket.externalIds.stubhubOrderId = p.orderId;
+      else if (platformLower.includes('ticketmaster')) soldTicket.externalIds.ticketmasterOrderId = p.orderId;
+    }
+    await window.api.upsertTicket(soldTicket);
+
+    // Create a remaining row — same event, same purchase price, but available.
+    // We strip ID/timestamps so backend assigns fresh ones.
+    const { id, created, updated, ...ticketWithoutIds } = ticket;
+    const remainingTicket = {
+      ...ticketWithoutIds,
+      quantity: remaining,
+      status: 'available',
+      salePrice: 0,
+      saleDate: null,
+      buyerName: undefined,
+      buyerEmail: undefined,
+      notes: [ticket.notes, `Zbylo z původních ${ticketQty} ks (prodáno ${emailQty})`].filter(Boolean).join(' | ')
+    };
+    await window.api.upsertTicket(remainingTicket);
+
+    await markInboxItemState(inboxId, 'approved');
+    await refreshDb();
+    renderInboxPage();
+    render();
+    toast(`✓ Prodáno ${emailQty} ks, ${remaining} ks zbývá na novém řádku`, 'success', 5000);
+    return;
+  }
+
+  // OVER-SALE — email reports more than we have. This is almost certainly bad
+  // parser data (e.g. quantity field misread), but we mark the whole ticket
+  // sold and warn the user.
+  if (emailQty > ticketQty) {
+    toast(`⚠ Email tvrdí ${emailQty} ks, ale máš jen ${ticketQty} ks. Označím všechno jako prodané — zkontroluj data.`, 'warn', 6000);
+  }
+
+  // FULL SALE (emailQty === ticketQty, or the warning fallback above).
   const updated = {
     ...ticket,
     status: 'sold',
