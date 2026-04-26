@@ -560,10 +560,75 @@
           </div>
         </div>
 
+        <!-- CAPITAL EFFICIENCY — sophisticated trader metrics
+             (přepočítaná roční sazba, hold kapitálu, otevřené obchody…) -->
+        <div class="capital-section">
+          <h3 class="section-title">EFEKTIVITA KAPITÁLU</h3>
+          <div class="capital-grid">
+            <div class="capital-panel">
+              <div class="capital-label">💰 NÁKLAD UZAVŘENÝCH</div>
+              <div class="capital-value" id="iClosedCost">—</div>
+              <div class="capital-sub">co tě stály prodané lístky</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">📈 PROFIT % UZAVŘENÝCH</div>
+              <div class="capital-value" id="iClosedRoi">—</div>
+              <div class="capital-sub" id="iClosedRoiSub">profit / náklad</div>
+            </div>
+            <div class="capital-panel capital-panel-highlight">
+              <div class="capital-label">🚀 ANUALIZOVANÁ SAZBA</div>
+              <div class="capital-value" id="iAnnualizedRate">—</div>
+              <div class="capital-sub">jak rychle otáčíš kapitál</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">🏦 OTEVŘENÝ KAPITÁL</div>
+              <div class="capital-value" id="iOpenCapital">—</div>
+              <div class="capital-sub" id="iOpenCapitalSub">v inventáři</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">💎 NEVYPLACENÉ PRODEJE</div>
+              <div class="capital-value" id="iUnpaidVolume">—</div>
+              <div class="capital-sub">prodáno, čeká platba</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">⏳ HOLD KAPITÁLU</div>
+              <div class="capital-value" id="iCapitalHold">—</div>
+              <div class="capital-sub">vážený průměr dní</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">📋 NEPRODANÉ CELKEM</div>
+              <div class="capital-value" id="iUnsoldTotal">—</div>
+              <div class="capital-sub">v inventáři</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">✅ ZALISTOVÁNO</div>
+              <div class="capital-value" id="iUnsoldListed">—</div>
+              <div class="capital-sub" id="iUnsoldListedSub">—</div>
+            </div>
+            <div class="capital-panel">
+              <div class="capital-label">⏳ NEZALISTOVÁNO</div>
+              <div class="capital-value" id="iUnsoldNotListed">—</div>
+              <div class="capital-sub" id="iUnsoldNotListedSub">—</div>
+            </div>
+          </div>
+        </div>
+
         <!-- CUMULATIVE CHART (full width) -->
         <div class="chart-card chart-card-full">
           <h3>KUMULATIVNÍ ZISK V ČASE</h3>
           <div class="chart-wrap"><canvas id="chartCumulative"></canvas></div>
+        </div>
+
+        <!-- MONTHLY PROFIT BAR + INVENTORY OVER TIME (side by side) -->
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>ZISK PO MĚSÍCÍCH</h3>
+            <div class="chart-wrap"><canvas id="chartMonthlyProfit"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>INVENTÁŘ V ČASE (KS)</h3>
+            <div class="chart-wrap"><canvas id="chartInventory"></canvas></div>
+          </div>
         </div>
 
         <!-- 2x2 CHARTS -->

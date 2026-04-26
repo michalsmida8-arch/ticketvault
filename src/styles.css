@@ -4241,3 +4241,87 @@ input[type="date"]::-webkit-datetime-edit {
   font-size: inherit;
   color: var(--text-primary);
 }
+
+/* ============================================================
+   CAPITAL EFFICIENCY SECTION (v1.6.0)
+   Sophisticated trader-grade metrics: anualized rate, capital
+   hold, open positions, etc. Visually distinct from KPI insights.
+   ============================================================ */
+
+.capital-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.capital-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1100px) { .capital-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px)  { .capital-grid { grid-template-columns: 1fr; } }
+
+.capital-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.capital-panel:hover {
+  border-color: rgba(var(--purple-rgb), 0.3);
+  transform: translateY(-1px);
+}
+
+/* Highlight panel for the most important metric (annualized rate) */
+.capital-panel-highlight {
+  background:
+    linear-gradient(135deg, rgba(var(--purple-rgb), 0.12) 0%, rgba(var(--purple-rgb), 0.02) 100%),
+    var(--bg-card);
+  border-color: rgba(var(--purple-rgb), 0.3);
+}
+
+.capital-panel-highlight .capital-value { color: var(--purple); }
+
+.capital-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.capital-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.capital-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

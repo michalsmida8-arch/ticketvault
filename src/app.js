@@ -4177,6 +4177,102 @@ function renderStatsPage() {
     }
   }
 
+  // ============================================================
+  // CAPITAL EFFICIENCY METRICS (v1.6.0)
+  // ============================================================
+  const primary = getPrimaryCurrency();
+
+  // 1) CLOSED COST — what sold tickets cost us (only those that closed)
+  // This is different from "Utraceno" which sums ALL purchases.
+  const closedCost = sold.reduce((s, t) => s + calcCostInPrimary(t), 0);
+  if ($('#iClosedCost')) {
+    $('#iClosedCost').textContent = formatMoney(closedCost, primary);
+  }
+
+  // 2) PROFIT % UZAVŘENÝCH — profit / closed cost × 100
+  // True ROI on closed positions (different from "Avg ROI per ticket").
+  const closedRoi = closedCost > 0 ? (totalProfit / closedCost) * 100 : 0;
+  if ($('#iClosedRoi')) {
+    $('#iClosedRoi').textContent = closedRoi.toFixed(1) + '%';
+    $('#iClosedRoiSub').textContent = `${formatMoney(totalProfit, primary)} / ${formatMoney(closedCost, primary)}`;
+  }
+
+  // 3) CAPITAL HOLD — weighted-average days money was tied up
+  // For each sold ticket: cost × hold_days. Sum / total_cost = weighted avg.
+  // This is the foundation for the annualized rate.
+  let capitalHold = 0;
+  {
+    const weighted = sold.reduce((acc, t) => {
+      if (!t.purchaseDate || !t.saleDate) return acc;
+      const days = calcHoldDays(t);
+      if (days < 0) return acc;
+      const cost = calcCostInPrimary(t);
+      acc.numerator += cost * days;
+      acc.denominator += cost;
+      return acc;
+    }, { numerator: 0, denominator: 0 });
+    capitalHold = weighted.denominator > 0 ? weighted.numerator / weighted.denominator : 0;
+  }
+  if ($('#iCapitalHold')) {
+    $('#iCapitalHold').textContent = capitalHold > 0 ? `${capitalHold.toFixed(1)} dní` : '—';
+  }
+
+  // 4) ANNUALIZED RATE — "if my business was a savings account, what %/year?"
+  // Formula: (profit / cost) × (365 / capital_hold_days) × 100
+  // Only meaningful when we have both real profit and real hold time.
+  if ($('#iAnnualizedRate')) {
+    if (closedCost > 0 && capitalHold > 0) {
+      const annualRate = (totalProfit / closedCost) * (365 / capitalHold) * 100;
+      $('#iAnnualizedRate').textContent = annualRate.toFixed(1) + '%';
+    } else {
+      $('#iAnnualizedRate').textContent = '—';
+    }
+  }
+
+  // 5) OPEN CAPITAL — money tied up in unsold tickets (still in inventory)
+  // We use the "available" / "listed" / no-status statuses.
+  const open = all.filter(t => t.status !== 'sold' && t.status !== 'delivered' && t.status !== 'cancelled');
+  const openCapital = open.reduce((s, t) => s + calcCostInPrimary(t), 0);
+  const openQty = sumQty(open);
+  if ($('#iOpenCapital')) {
+    $('#iOpenCapital').textContent = formatMoney(openCapital, primary);
+    $('#iOpenCapitalSub').textContent = `${openQty} ks v inventáři`;
+  }
+
+  // 6) UNPAID VOLUME — sold but not yet delivered (revenue we're owed)
+  // "delivered" = paid out by platform; "sold" = we sold it but haven't been paid.
+  const unpaidSales = all.filter(t => t.status === 'sold');
+  const unpaidVolume = unpaidSales.reduce((s, t) => s + calcRevenueInPrimary(t), 0);
+  if ($('#iUnpaidVolume')) {
+    $('#iUnpaidVolume').textContent = formatMoney(unpaidVolume, primary);
+  }
+
+  // 7) UNSOLD BREAKDOWN — total unsold + listed (zalistováno) vs not listed.
+  // Three separate panels for: total, listed count, not-listed count.
+  const unsold = all.filter(t => t.status !== 'sold' && t.status !== 'delivered' && t.status !== 'cancelled');
+  const listed = unsold.filter(t => t.status === 'listed');
+  const notListed = unsold.filter(t => t.status !== 'listed');
+  const listedQty = sumQty(listed);
+  const notListedQty = sumQty(notListed);
+  const unsoldQty = sumQty(unsold);
+  const listingRate = unsoldQty > 0 ? (listedQty / unsoldQty) * 100 : 0;
+  const notListedRate = unsoldQty > 0 ? (notListedQty / unsoldQty) * 100 : 0;
+  if ($('#iUnsoldTotal')) {
+    $('#iUnsoldTotal').textContent = `${unsoldQty} ks`;
+  }
+  if ($('#iUnsoldListed')) {
+    $('#iUnsoldListed').textContent = `${listedQty} ks`;
+    $('#iUnsoldListedSub').textContent = unsoldQty > 0
+      ? `${listingRate.toFixed(1)} % z neprodaných`
+      : '—';
+  }
+  if ($('#iUnsoldNotListed')) {
+    $('#iUnsoldNotListed').textContent = `${notListedQty} ks`;
+    $('#iUnsoldNotListedSub').textContent = unsoldQty > 0
+      ? `${notListedRate.toFixed(1)} % z neprodaných`
+      : '—';
+  }
+
   renderCharts(sold, all);
 }
 
@@ -4592,6 +4688,148 @@ function renderCharts(sold, all) {
             ticks: {
               ...baseOptions.scales.y.ticks,
               callback: (val) => val + ' ' + primarySym
+            }
+          }
+        }
+      }
+    });
+  });
+
+  // ============================================================
+  // MONTHLY PROFIT BAR — sum of profit per calendar month, by sale date
+  // ============================================================
+  const monthlyData = {};
+  const CZ_MONTHS_SHORT = ['led','úno','bře','dub','kvě','čvn','čvc','srp','zář','říj','lis','pro'];
+  sold.forEach(t => {
+    if (!t.saleDate) return;
+    const d = new Date(t.saleDate);
+    if (isNaN(d)) return;
+    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+    monthlyData[key] = (monthlyData[key] || 0) + calcProfitInPrimary(t);
+  });
+  const monthlyEntries = Object.entries(monthlyData).sort((a, b) => a[0].localeCompare(b[0]));
+
+  renderOrEmpty('chartMonthlyProfit', monthlyEntries.length > 0, 'Žádná data — prodej alespoň jednu vstupenku.', (canvas) => {
+    const labels = monthlyEntries.map(([k]) => {
+      const [y, m] = k.split('-');
+      return `${CZ_MONTHS_SHORT[parseInt(m)]} ${y.slice(2)}`;
+    });
+    const values = monthlyEntries.map(([, v]) => v);
+    state.charts.monthlyProfit = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: `Zisk (${getPrimaryCurrency()})`,
+          data: values,
+          backgroundColor: values.map(v => v >= 0 ? chartPurple : '#d06b5a'),
+          borderRadius: 4,
+          barThickness: 'flex',
+          maxBarThickness: 28
+        }]
+      },
+      options: {
+        ...baseOptions,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` Zisk: ${formatMoney(ctx.parsed.y, getPrimaryCurrency())}`
+            }
+          }
+        },
+        scales: {
+          ...baseOptions.scales,
+          y: {
+            ...baseOptions.scales.y,
+            ticks: {
+              ...baseOptions.scales.y.ticks,
+              callback: (val) => val + ' ' + primarySym
+            }
+          }
+        }
+      }
+    });
+  });
+
+  // ============================================================
+  // INVENTORY OVER TIME — count of unsold tickets at each date
+  // For every distinct date (purchase or sale), compute current inventory
+  // = tickets bought up to that date minus tickets sold up to that date.
+  // ============================================================
+  const inventoryPoints = (() => {
+    // Collect all distinct dates we know about (purchase + sale)
+    const dates = new Set();
+    all.forEach(t => {
+      if (t.purchaseDate) dates.add(t.purchaseDate);
+      if (t.saleDate) dates.add(t.saleDate);
+    });
+    const sortedDates = [...dates].sort();
+    if (sortedDates.length === 0) return [];
+
+    // Sample every N days to keep chart readable for long ranges
+    const start = new Date(sortedDates[0]);
+    const end = new Date(sortedDates[sortedDates.length - 1]);
+    const totalDays = Math.max(1, Math.round((end - start) / 86400000));
+    const stepDays = Math.max(1, Math.ceil(totalDays / 200));  // cap at ~200 points
+
+    const points = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + stepDays)) {
+      const dateStr = d.toISOString().slice(0, 10);
+      // Inventory = bought before/on this date - sold before/on this date
+      let inventoryQty = 0;
+      all.forEach(t => {
+        const qty = Number(t.quantity) || 1;
+        if (t.purchaseDate && t.purchaseDate <= dateStr) inventoryQty += qty;
+        if (t.saleDate && t.saleDate <= dateStr) inventoryQty -= qty;
+      });
+      points.push({ x: dateStr, y: Math.max(0, inventoryQty) });
+    }
+    return points;
+  })();
+
+  renderOrEmpty('chartInventory', inventoryPoints.length > 1, 'Žádná data — přidej lístky s datem nákupu.', (canvas) => {
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height || 300);
+    gradient.addColorStop(0, `rgba(${chartPurpleRgb}, 0.3)`);
+    gradient.addColorStop(1, `rgba(${chartPurpleRgb}, 0)`);
+    state.charts.inventory = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: inventoryPoints.map(p => p.x),
+        datasets: [{
+          label: 'Počet vstupenek v inventáři',
+          data: inventoryPoints.map(p => p.y),
+          borderColor: chartPurple,
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.25,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointBackgroundColor: chartPurple,
+          borderWidth: 2,
+          cubicInterpolationMode: 'monotone'
+        }]
+      },
+      options: {
+        ...baseOptions,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.parsed.y} ks v inventáři`
+            }
+          }
+        },
+        scales: {
+          ...baseOptions.scales,
+          y: {
+            ...baseOptions.scales.y,
+            beginAtZero: true,
+            ticks: {
+              ...baseOptions.scales.y.ticks,
+              callback: (val) => val + ' ks',
+              precision: 0
             }
           }
         }
