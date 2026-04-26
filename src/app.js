@@ -1677,7 +1677,10 @@ function renderTickets() {
   empty.style.display = 'none';
   
   tbody.innerHTML = list.map(t => {
-    const profit = calcProfit(t);
+    // All money displayed in primary currency for consistency across rows.
+    // Conversion uses current FX rates from Settings.
+    const primary = getPrimaryCurrency();
+    const profit = calcProfitInPrimary(t);
     const roi = calcRoi(t);
     const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
     const roiClass = roi >= 0 ? 'roi-positive' : 'roi-negative';
@@ -1768,8 +1771,22 @@ function renderTickets() {
         })()}</td>
         <td>${t.quantity || 1}</td>
         <td><span class="status-pill status-${t.status || 'available'}">${statusLabel}</span></td>
-        <td title="${(Number(t.quantity) || 1) > 1 ? 'Cena za 1 ks: ' + formatMoney(t.purchasePrice, ticketCurrency(t)) : ''}">${formatMoney(calcCost(t), ticketCurrency(t))}${(Number(t.quantity) || 1) > 1 ? ` <span class="per-ks">(${formatMoney(t.purchasePrice, ticketCurrency(t))}/ks)</span>` : ''}</td>
-        <td title="${isSoldOrDelivered && (Number(t.quantity) || 1) > 1 ? 'Cena za 1 ks: ' + formatMoney(t.salePrice, ticketCurrency(t)) : ''}">${isSoldOrDelivered ? formatMoney(calcRevenue(t), ticketCurrency(t)) + ((Number(t.quantity) || 1) > 1 ? ` <span class="per-ks">(${formatMoney(t.salePrice, ticketCurrency(t))}/ks)</span>` : '') : '—'}</td>
+        <td title="${(() => {
+          // Tooltip shows the original currency price (so user knows what was actually paid in source currency)
+          const origCcy = ticketCurrency(t);
+          const isMixed = origCcy !== primary;
+          const perKs = (Number(t.quantity) || 1) > 1 ? 'Cena za 1 ks: ' + formatMoney(t.purchasePrice, origCcy) + '\n' : '';
+          const orig = isMixed ? `Původní cena: ${formatMoney(calcCost(t), origCcy)}` : '';
+          return (perKs + orig).trim();
+        })()}">${formatMoney(calcCostInPrimary(t), primary)}${(Number(t.quantity) || 1) > 1 ? ` <span class="per-ks">(${formatMoney(calcCostInPrimary(t) / (Number(t.quantity) || 1), primary)}/ks)</span>` : ''}</td>
+        <td title="${(() => {
+          if (!isSoldOrDelivered) return '';
+          const origCcy = ticketCurrency(t);
+          const isMixed = origCcy !== primary;
+          const perKs = (Number(t.quantity) || 1) > 1 ? 'Cena za 1 ks: ' + formatMoney(t.salePrice, origCcy) + '\n' : '';
+          const orig = isMixed ? `Původní cena: ${formatMoney(calcRevenue(t), origCcy)}` : '';
+          return (perKs + orig).trim();
+        })()}">${isSoldOrDelivered ? formatMoney(calcRevenueInPrimary(t), primary) + ((Number(t.quantity) || 1) > 1 ? ` <span class="per-ks">(${formatMoney(calcRevenueInPrimary(t) / (Number(t.quantity) || 1), primary)}/ks)</span>` : '') : '—'}</td>
         <td class="col-hold">${(() => {
           // HOLD = days between purchase and sale.
           // Only shown for sold/delivered tickets — for unsold tickets the
@@ -1782,7 +1799,7 @@ function renderTickets() {
           const days = Math.max(0, Math.round((saleD - purchaseD) / 86400000));
           return `<span class="hold-final" title="Prodáno za ${days} dní od nákupu">${days} d</span>`;
         })()}</td>
-        <td class="${profitClass}">${isSoldOrDelivered ? formatMoney(profit, ticketCurrency(t)) : '—'}</td>
+        <td class="${profitClass}">${isSoldOrDelivered ? formatMoney(profit, primary) : '—'}</td>
         <td>${isSoldOrDelivered ? `<span class="roi-pill ${roiClass}">${roi.toFixed(1)}%</span>` : '—'}</td>
         <td class="col-actions">
           <div class="actions-cell">
