@@ -1602,7 +1602,10 @@
               <button type="button" class="price-mode-btn active" data-mode="per" role="tab">Za 1 ks</button>
               <button type="button" class="price-mode-btn" data-mode="total" role="tab">Celkem za všechny</button>
             </div>
-            <input type="number" id="sellPrice" step="0.01" placeholder="0.00">
+            <div class="price-with-currency">
+              <input type="number" id="sellPrice" step="0.01" placeholder="0.00">
+              <select id="sellCurrency" class="currency-inline" aria-label="Měna prodeje"></select>
+            </div>
             <div class="sell-hint" id="sellPriceHint"></div>
             <div class="sell-total" id="sellTotalLine"></div>
           </div>

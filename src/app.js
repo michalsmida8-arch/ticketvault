@@ -277,13 +277,26 @@ function formatDate(dateStr) {
 // *InPrimary variants below — those convert everything to the dashboard's
 // primary currency via today's exchange rates.
 
+// Helper — currency in which the SALE is denominated. Falls back to the
+// ticket's main currency (which is purchase currency by convention).
+function saleCurrency(t) {
+  return (t && t.saleCurrency) || ticketCurrency(t);
+}
+
 function calcProfit(t) {
   if (t.status !== 'sold' && t.status !== 'delivered') return 0;
   const qty = Number(t.quantity) || 1;
   const sale = Number(t.salePrice) || 0;
   const purchase = Number(t.purchasePrice) || 0;
   // salePrice a purchasePrice jsou za 1 kus - násobíme počtem kusů
-  return (sale - purchase) * qty;
+  // If sale and purchase are in different currencies, normalize sale to
+  // the purchase currency before subtracting (returns profit in PURCHASE ccy).
+  const purchaseCcy = ticketCurrency(t);
+  const saleCcy = saleCurrency(t);
+  const saleInPurchaseCcy = saleCcy === purchaseCcy
+    ? sale
+    : convertCurrency(sale, saleCcy, purchaseCcy);
+  return (saleInPurchaseCcy - purchase) * qty;
 }
 
 function calcRoi(t) {
@@ -291,28 +304,30 @@ function calcRoi(t) {
   const qty = Number(t.quantity) || 1;
   const totalCost = (Number(t.purchasePrice) || 0) * qty;
   if (totalCost <= 0) return 0;
-  // ROI is a ratio, so currency cancels out — no conversion needed.
+  // ROI is a ratio, so currency cancels out — calcProfit is already in purchase ccy.
   return (calcProfit(t) / totalCost) * 100;
 }
 
-// Total revenue for one ticket row (sale price × quantity), ticket's currency.
+// Total revenue for one ticket row (sale price × quantity), in SALE currency.
 function calcRevenue(t) {
   if (t.status !== 'sold' && t.status !== 'delivered') return 0;
   return (Number(t.salePrice) || 0) * (Number(t.quantity) || 1);
 }
 
-// Total cost for one ticket row (purchase × quantity), ticket's currency.
+// Total cost for one ticket row (purchase × quantity), in PURCHASE currency.
 function calcCost(t) {
   return (Number(t.purchasePrice) || 0) * (Number(t.quantity) || 1);
 }
 
 // Primary-currency variants — used when summing across tickets whose currencies
 // may differ. Each ticket's amount is converted via today's exchange rate.
+// Sale amounts use saleCurrency (which may differ from purchaseCurrency).
 function calcProfitInPrimary(t) {
+  // calcProfit returns in PURCHASE currency, so convert from there.
   return convertCurrency(calcProfit(t), ticketCurrency(t), getPrimaryCurrency());
 }
 function calcRevenueInPrimary(t) {
-  return convertCurrency(calcRevenue(t), ticketCurrency(t), getPrimaryCurrency());
+  return convertCurrency(calcRevenue(t), saleCurrency(t), getPrimaryCurrency());
 }
 function calcCostInPrimary(t) {
   return convertCurrency(calcCost(t), ticketCurrency(t), getPrimaryCurrency());
@@ -5350,6 +5365,16 @@ function openSellModal(ticket) {
   }
   $('#sellDate').value = new Date().toISOString().slice(0, 10);
 
+  // Currency dropdown — default to ticket's currency (or saleCurrency if previously set)
+  const sellCurSel = $('#sellCurrency');
+  if (sellCurSel) {
+    sellCurSel.innerHTML = CURRENCIES
+      .map(c => `<option value="${c.code}">${c.code}</option>`)
+      .join('');
+    // Prefer existing saleCurrency, fallback to ticket's currency
+    sellCurSel.value = ticket.saleCurrency || ticket.currency || getPrimaryCurrency();
+  }
+
   // Sync toggle buttons to remembered mode + wire click handlers.
   updatePriceModeUI();
 
@@ -5428,21 +5453,32 @@ function updateSellHints() {
   const totalLine = $('#sellTotalLine');
   if (pricePerKs > 0 && sellQty > 0) {
     const totalRevenue = pricePerKs * sellQty;
+    // Currency-aware profit: when sale and purchase are in different currencies,
+    // convert sale into purchase currency before computing profit.
+    const purchaseCcy = ticketCurrency(ticket);
+    const sellCcy = $('#sellCurrency')?.value || purchaseCcy;
     const totalCost = purchasePerKs * sellQty;
-    const profit = totalRevenue - totalCost;
+    const totalRevenueInPurchaseCcy = sellCcy === purchaseCcy
+      ? totalRevenue
+      : convertCurrency(totalRevenue, sellCcy, purchaseCcy);
+    const profit = totalRevenueInPurchaseCcy - totalCost;
     const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
     const profitColor = profit >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
 
-    // Preview stays in the ticket's native currency — we don't convert during
-    // sale entry, since the user is typing in that currency.
-    const tc = ticketCurrency(ticket);
+    // Preview shows numbers in the SALE currency the user is typing in;
+    // profit is shown in the PURCHASE currency (apples-to-apples with cost).
     const primaryLine = state.sellPriceMode === 'total'
-      ? `Za 1 ks: <strong>${formatMoney(pricePerKs, tc)}</strong> (${sellQty}× = ${formatMoney(totalRevenue, tc)})`
-      : `Celkem prodej: <strong>${formatMoney(totalRevenue, tc)}</strong> (${sellQty}× ${formatMoney(pricePerKs, tc)})`;
+      ? `Za 1 ks: <strong>${formatMoney(pricePerKs, sellCcy)}</strong> (${sellQty}× = ${formatMoney(totalRevenue, sellCcy)})`
+      : `Celkem prodej: <strong>${formatMoney(totalRevenue, sellCcy)}</strong> (${sellQty}× ${formatMoney(pricePerKs, sellCcy)})`;
+
+    // Profit annotation — note original currency when conversion happened
+    const profitNote = sellCcy !== purchaseCcy
+      ? ` <span class="per-ks">(přepočet z ${sellCcy})</span>`
+      : '';
 
     totalLine.innerHTML = `
       <div>${primaryLine}</div>
-      <div>Profit: <strong style="color:${profitColor}">${formatMoney(profit, tc)}</strong> (ROI ${roi.toFixed(1)}%)</div>
+      <div>Profit: <strong style="color:${profitColor}">${formatMoney(profit, purchaseCcy)}</strong>${profitNote} (ROI ${roi.toFixed(1)}%)</div>
     `;
   } else {
     totalLine.innerHTML = '';
@@ -5469,6 +5505,11 @@ async function confirmSell() {
   // We persist salePrice as per-ks so downstream math (profit, ROI, displays) stays consistent.
   const pricePerKs = getSellPricePerKs();
   const saleDate = $('#sellDate').value;
+  // saleCurrency is stored ONLY when it differs from the ticket's main currency.
+  // If they match, leave it undefined and let calcRevenue fall back to t.currency.
+  const sellCurrency = $('#sellCurrency')?.value || ticket.currency || getPrimaryCurrency();
+  const ticketCcy = ticket.currency || getPrimaryCurrency();
+  const saleCurrency = sellCurrency !== ticketCcy ? sellCurrency : undefined;
 
   if (!pricePerKs || pricePerKs <= 0) {
     toast('Zadej platnou cenu', 'error');
@@ -5481,6 +5522,7 @@ async function confirmSell() {
       ...ticket,
       salePrice: pricePerKs,
       saleDate,
+      saleCurrency,
       status: 'sold'
     };
     await window.api.upsertTicket(soldTicket);
@@ -5499,6 +5541,7 @@ async function confirmSell() {
       quantity: sellQty,
       salePrice: pricePerKs,
       saleDate,
+      saleCurrency,
       status: 'sold',
       notes: (ticket.notes ? ticket.notes + ' | ' : '') + `Rozděleno: ${sellQty} z ${totalQty} ks prodáno`
     };
@@ -5728,6 +5771,7 @@ function setupEventListeners() {
   // Live updates in sell modal
   $('#sellQuantity')?.addEventListener('input', updateSellHints);
   $('#sellPrice')?.addEventListener('input', updateSellHints);
+  $('#sellCurrency')?.addEventListener('change', updateSellHints);
 
   // Price mode toggle (per-ks / total) — switches interpretation of the price input.
   // When switching modes we convert the currently-typed value so the net per-ks

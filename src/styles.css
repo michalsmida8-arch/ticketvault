@@ -4325,3 +4325,20 @@ input[type="date"]::-webkit-datetime-edit {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* Sell modal: price input + currency selector inline */
+.price-with-currency {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.price-with-currency input[type="number"] {
+  flex: 1;
+}
+.price-with-currency .currency-inline {
+  flex-shrink: 0;
+  min-width: 90px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
