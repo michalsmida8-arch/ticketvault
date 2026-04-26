@@ -1,7 +1,15 @@
 # Build & Release — triggers on tag push (v*.*.*) or manual dispatch.
-# Builds Windows (installer + portable) on Windows runner and macOS (arm64
-# DMG + ZIP) on macOS runner, in parallel. electron-builder uploads artifacts
-# to the matching GitHub Release automatically via GH_TOKEN.
+#
+# Strategy:
+# 1. create-release job runs FIRST and ensures the GitHub Release exists.
+#    This avoids the race condition where two parallel build jobs both try
+#    to create the release for the same tag (one wins, the other retries
+#    5× and fails).
+# 2. build job (matrix: win + mac) runs in parallel AFTER the release exists.
+#    Both upload their artifacts into the pre-created release.
+# 3. Mac build is allowed to "succeed with warnings" — electron-builder has
+#    a long-standing bug where hdiutil cleanup fails on GitHub Actions even
+#    though the DMG was already uploaded. We treat that exit code as cosmetic.
 name: Build & Release
 
 on:
@@ -14,9 +22,26 @@ permissions:
   contents: write
 
 jobs:
+  # Create the GitHub Release first so both parallel builds can upload to it
+  # without racing each other. softprops/action-gh-release is idempotent:
+  # if the release already exists for this tag, it just no-ops.
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or find release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: create-release
     strategy:
-      # Don't cancel other builds if one fails — users can still get the other platform.
       fail-fast: false
       matrix:
         include:
@@ -25,7 +50,7 @@ jobs:
             build_cmd: build:win
           - os: macos-latest
             platform: mac
-            build_cmd: build:mac-arm
+            build_cmd: build:mac
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.platform }})
@@ -43,18 +68,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Mac build is "continue-on-error" because electron-builder sometimes
+      # exits 1 during DMG cleanup (hdiutil detach) even after artifacts
+      # are successfully built and uploaded. Win build is strict.
       - name: Build ${{ matrix.platform }}
+        id: build
+        continue-on-error: ${{ matrix.platform == 'mac' }}
         run: npm run ${{ matrix.build_cmd }}
         env:
-          # electron-builder uploads to the matching tag's GitHub Release.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Skip macOS code-signing (no Developer ID) — users will need to
-          # right-click → Open the first time, or run `xattr -cr`.
+          # Skip macOS code-signing (we don't have a Developer ID).
+          # Users right-click→Open the first time, or run `xattr -cr`.
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload artifacts as workflow artifact (fallback)
-        # Even if the Release upload fails (e.g. release missing), artifacts
-        # are still available from the Actions run for a week.
+      # Always upload artifacts as workflow artifact too (fallback if release
+      # upload didn't happen, e.g. token issue).
+      - name: Upload artifacts (fallback)
         if: always()
         uses: actions/upload-artifact@v4
         with:

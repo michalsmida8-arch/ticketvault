@@ -1,6 +1,6 @@
 {
   "name": "ticketvault",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "TicketVault - Ticket Inventory Manager",
   "main": "main.js",
   "author": "TicketVault",

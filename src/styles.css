@@ -4326,18 +4326,24 @@ input[type="date"]::-webkit-datetime-edit {
   font-variant-numeric: tabular-nums;
 }
 
-/* Sell modal: price input + currency selector inline */
+/* Sell modal: price input + currency selector inline.
+   Input takes most of the space, currency dropdown is a fixed-width tag.
+   `min-width: 0` on flex items is critical to prevent the input from
+   refusing to shrink (default min-width is its content size). */
 .price-with-currency {
   display: flex;
   gap: 8px;
   align-items: stretch;
+  width: 100%;
 }
 .price-with-currency input[type="number"] {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
 }
 .price-with-currency .currency-inline {
-  flex-shrink: 0;
-  min-width: 90px;
+  flex: 0 0 90px;
+  width: 90px;
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 500;
