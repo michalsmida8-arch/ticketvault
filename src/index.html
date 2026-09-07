@@ -2620,6 +2620,52 @@
               <button class="btn btn-dark btn-sm" id="mbfPasswordToggle" type="button" title="Zobrazit/skrýt heslo">👁</button>
             </div>
           </div>
+          <div class="form-group form-full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px;">
+            <label style="color:var(--text-tertiary);font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Kontaktní / fakturační údaje (pro checkout)</label>
+          </div>
+          <div class="form-group">
+            <label>Telefon — předvolba</label>
+            <select id="mbfPhoneCountry">
+              <option value="+420">CZ (+420)</option>
+              <option value="+421">SK (+421)</option>
+              <option value="+49">DE (+49)</option>
+              <option value="+44">UK (+44)</option>
+              <option value="+43">AT (+43)</option>
+              <option value="+48">PL (+48)</option>
+              <option value="+39">IT (+39)</option>
+              <option value="+34">ES (+34)</option>
+              <option value="+33">FR (+33)</option>
+              <option value="+31">NL (+31)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Mobil</label>
+            <input type="text" id="mbfPhone" placeholder="770 700 160">
+          </div>
+          <div class="form-group">
+            <label>PSČ</label>
+            <input type="text" id="mbfPostcode" placeholder="41301">
+          </div>
+          <div class="form-group">
+            <label>Město</label>
+            <input type="text" id="mbfCity" placeholder="Roudnice">
+          </div>
+          <div class="form-group form-full">
+            <label>Adresa — řádek 1</label>
+            <input type="text" id="mbfAddress1" placeholder="Ulice a číslo">
+          </div>
+          <div class="form-group form-full">
+            <label>Adresa — řádek 2</label>
+            <input type="text" id="mbfAddress2" placeholder="Volitelné">
+          </div>
+          <div class="form-group">
+            <label>Region / kraj</label>
+            <input type="text" id="mbfRegion" placeholder="Ústecký kraj">
+          </div>
+          <div class="form-group">
+            <label>Země</label>
+            <input type="text" id="mbfCountry" placeholder="Czech Republic">
+          </div>
           <div class="form-group form-full">
             <label>Poznámka</label>
             <textarea id="mbfNotes" rows="2" placeholder="Volitelná poznámka..."></textarea>
